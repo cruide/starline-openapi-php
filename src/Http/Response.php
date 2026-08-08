@@ -1,4 +1,4 @@
-<?php namespace StarlineApi\Http;
+<?php namespace Cruide\StarlineApi\Http;
 /**
  * Ответ HTTP-клиента.
  *

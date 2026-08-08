@@ -1,4 +1,4 @@
-<?php namespace StarlineApi\Support;
+<?php namespace Cruide\StarlineApi\Support;
 /**
  * Вспомогательные методы для работы с массивами (аналог Arr::get из Laravel).
  *

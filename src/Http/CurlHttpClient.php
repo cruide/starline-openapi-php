@@ -1,6 +1,6 @@
-<?php namespace StarlineApi\Http;
+<?php namespace Cruide\StarlineApi\Http;
 
-use StarlineApi\Exceptions\StarlineHttpException;
+use Cruide\StarlineApi\Exceptions\StarlineHttpException;
 
 /**
  * HTTP-клиент на cURL (без внешних зависимостей).

@@ -1,8 +1,8 @@
-<?php namespace StarlineApi\Api;
+<?php namespace Cruide\StarlineApi\Api;
 
-use StarlineApi\Models\Device;
-use StarlineApi\Models\DeviceState;
-use StarlineApi\StarlineApi;
+use Cruide\StarlineApi\Models\Device;
+use Cruide\StarlineApi\Models\DeviceState;
+use Cruide\StarlineApi\StarlineApi;
 
 /**
  * Методы работы с устройствами StarLine.

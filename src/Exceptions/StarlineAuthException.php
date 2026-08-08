@@ -1,4 +1,4 @@
-<?php namespace StarlineApi\Exceptions;
+<?php namespace Cruide\StarlineApi\Exceptions;
 /**
  * Ошибка авторизации (SLID): неверные App ID/Secret, логин/пароль,
  * истёкший user_token или slnet.

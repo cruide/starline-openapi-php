@@ -1,10 +1,10 @@
-<?php namespace StarlineApi\Tests\Auth;
+<?php namespace Cruide\StarlineApi\Tests\Auth;
 
 use PHPUnit\Framework\TestCase;
-use StarlineApi\Auth\Authenticator;
-use StarlineApi\Auth\InMemoryTokenStorage;
-use StarlineApi\Http\Response;
-use StarlineApi\Tests\Support\FakeHttpClient;
+use Cruide\StarlineApi\Auth\Authenticator;
+use Cruide\StarlineApi\Auth\InMemoryTokenStorage;
+use Cruide\StarlineApi\Http\Response;
+use Cruide\StarlineApi\Tests\Support\FakeHttpClient;
 
 /**
  * @author Alexander Tischenko (http://alex-tisch.ru)

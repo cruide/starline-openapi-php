@@ -1,7 +1,7 @@
-<?php namespace StarlineApi\Tests\Auth;
+<?php namespace Cruide\StarlineApi\Tests\Auth;
 
 use PHPUnit\Framework\TestCase;
-use StarlineApi\Auth\InMemoryTokenStorage;
+use Cruide\StarlineApi\Auth\InMemoryTokenStorage;
 
 /**
  * @author Alexander Tischenko (http://alex-tisch.ru)

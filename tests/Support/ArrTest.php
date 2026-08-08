@@ -1,7 +1,7 @@
-<?php namespace StarlineApi\Tests\Support;
+<?php namespace Cruide\StarlineApi\Tests\Support;
 
 use PHPUnit\Framework\TestCase;
-use StarlineApi\Support\Arr;
+use Cruide\StarlineApi\Support\Arr;
 
 /**
  * @author Alexander Tischenko (http://alex-tisch.ru)

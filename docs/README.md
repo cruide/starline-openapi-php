@@ -38,7 +38,7 @@ composer require cruide/starline-openapi-php
 ## Быстрый старт
 
 ```php
-use StarlineApi\StarlineApi;
+use Cruide\StarlineApi\StarlineApi;
 
 $api = new StarlineApi(
     appId: 123456,
@@ -199,7 +199,7 @@ $api = new StarlineApi(
 Токены сохраняются в JSON-файл. Подходит для cron-задач.
 
 ```php
-use StarlineApi\Auth\FileTokenStorage;
+use Cruide\StarlineApi\Auth\FileTokenStorage;
 
 $api = new StarlineApi(
     appId: 123456,
@@ -215,7 +215,7 @@ $api = new StarlineApi(
 Реализуйте `TokenStorageInterface` — три метода: `get()`, `set()`, `delete()`.
 
 ```php
-use StarlineApi\Auth\TokenStorageInterface;
+use Cruide\StarlineApi\Auth\TokenStorageInterface;
 
 final class MyTokenStorage implements TokenStorageInterface
 {
@@ -240,7 +240,7 @@ final class MyTokenStorage implements TokenStorageInterface
 `HttpClientInterface` — например, на Guzzle-адаптер.
 
 ```php
-use StarlineApi\Http\HttpClientInterface;
+use Cruide\StarlineApi\Http\HttpClientInterface;
 
 $api = new StarlineApi(
     appId: 123456,

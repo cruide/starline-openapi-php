@@ -1,7 +1,7 @@
-<?php namespace StarlineApi\Tests\Http;
+<?php namespace Cruide\StarlineApi\Tests\Http;
 
 use PHPUnit\Framework\TestCase;
-use StarlineApi\Http\Response;
+use Cruide\StarlineApi\Http\Response;
 
 final class ResponseTest extends TestCase
 {

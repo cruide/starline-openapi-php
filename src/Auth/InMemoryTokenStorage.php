@@ -1,4 +1,4 @@
-<?php namespace StarlineApi\Auth;
+<?php namespace Cruide\StarlineApi\Auth;
 /**
  * Хранилище токенов в памяти процесса (по умолчанию).
  *

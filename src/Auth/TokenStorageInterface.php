@@ -1,4 +1,4 @@
-<?php namespace StarlineApi\Auth;
+<?php namespace Cruide\StarlineApi\Auth;
 /**
  * Контракт хранилища токенов.
  *

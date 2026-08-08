@@ -1,8 +1,8 @@
-<?php namespace StarlineApi\Api;
+<?php namespace Cruide\StarlineApi\Api;
 
-use StarlineApi\Models\Device;
-use StarlineApi\Models\UserInfo;
-use StarlineApi\StarlineApi;
+use Cruide\StarlineApi\Models\Device;
+use Cruide\StarlineApi\Models\UserInfo;
+use Cruide\StarlineApi\StarlineApi;
 
 /**
  * Методы, связанные с пользователем.

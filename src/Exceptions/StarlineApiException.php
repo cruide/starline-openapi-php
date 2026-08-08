@@ -1,4 +1,4 @@
-<?php namespace StarlineApi\Exceptions;
+<?php namespace Cruide\StarlineApi\Exceptions;
 /**
  * Ошибка уровня API: HTTP >= 400 либо конверт ответа с ошибочным state/code.
  *

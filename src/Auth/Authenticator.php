@@ -1,9 +1,9 @@
-<?php namespace StarlineApi\Auth;
+<?php namespace Cruide\StarlineApi\Auth;
 
-use StarlineApi\Exceptions\StarlineAuthException;
-use StarlineApi\Http\HttpClientInterface;
-use StarlineApi\Http\Response;
-use StarlineApi\Support\Arr;
+use Cruide\StarlineApi\Exceptions\StarlineAuthException;
+use Cruide\StarlineApi\Http\HttpClientInterface;
+use Cruide\StarlineApi\Http\Response;
+use Cruide\StarlineApi\Support\Arr;
 
 /**
  * SLID-авторизация StarLine API.

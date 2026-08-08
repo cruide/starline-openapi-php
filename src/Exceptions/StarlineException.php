@@ -1,4 +1,4 @@
-<?php namespace StarlineApi\Exceptions;
+<?php namespace Cruide\StarlineApi\Exceptions;
 
 /**
  * Базовое исключение библиотеки StarlineApi.

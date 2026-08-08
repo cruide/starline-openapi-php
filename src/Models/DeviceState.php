@@ -1,6 +1,6 @@
-<?php namespace StarlineApi\Models;
+<?php namespace Cruide\StarlineApi\Models;
 
-use StarlineApi\Support\Arr;
+use Cruide\StarlineApi\Support\Arr;
 
 /**
  * Текущее состояние устройства (GET /json/v3/device/{id}/data).

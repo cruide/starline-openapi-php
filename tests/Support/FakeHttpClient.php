@@ -1,7 +1,7 @@
-<?php namespace StarlineApi\Tests\Support;
+<?php namespace Cruide\StarlineApi\Tests\Support;
 
-use StarlineApi\Http\HttpClientInterface;
-use StarlineApi\Http\Response;
+use Cruide\StarlineApi\Http\HttpClientInterface;
+use Cruide\StarlineApi\Http\Response;
 
 /**
  * Фейковый HTTP-клиент для тестов: очередь заготовленных ответов

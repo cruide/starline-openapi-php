@@ -8,8 +8,8 @@
 
 require __DIR__ . '/../vendor/autoload.php';
 
-use StarlineApi\Auth\FileTokenStorage;
-use StarlineApi\StarlineApi;
+use Cruide\StarlineApi\Auth\FileTokenStorage;
+use Cruide\StarlineApi\StarlineApi;
 
 // 1. Зарегистрируйте приложение в кабинете разработчика StarLine
 //    (https://developer.starline.ru) и получите App ID и Secret Key.

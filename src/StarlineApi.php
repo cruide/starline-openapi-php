@@ -1,17 +1,17 @@
-<?php namespace StarlineApi;
+<?php namespace Cruide\StarlineApi;
 
-use StarlineApi\Api\DeviceApi;
-use StarlineApi\Api\UserApi;
-use StarlineApi\Auth\Authenticator;
-use StarlineApi\Auth\InMemoryTokenStorage;
-use StarlineApi\Auth\TokenStorageInterface;
-use StarlineApi\Exceptions\StarlineApiException;
-use StarlineApi\Exceptions\StarlineAuthException;
-use StarlineApi\Exceptions\StarlineException;
-use StarlineApi\Http\CurlHttpClient;
-use StarlineApi\Http\HttpClientInterface;
-use StarlineApi\Http\Response;
-use StarlineApi\Support\Arr;
+use Cruide\StarlineApi\Api\DeviceApi;
+use Cruide\StarlineApi\Api\UserApi;
+use Cruide\StarlineApi\Auth\Authenticator;
+use Cruide\StarlineApi\Auth\InMemoryTokenStorage;
+use Cruide\StarlineApi\Auth\TokenStorageInterface;
+use Cruide\StarlineApi\Exceptions\StarlineApiException;
+use Cruide\StarlineApi\Exceptions\StarlineAuthException;
+use Cruide\StarlineApi\Exceptions\StarlineException;
+use Cruide\StarlineApi\Http\CurlHttpClient;
+use Cruide\StarlineApi\Http\HttpClientInterface;
+use Cruide\StarlineApi\Http\Response;
+use Cruide\StarlineApi\Support\Arr;
 
 /**
  * Главная точка входа в API StarLine.

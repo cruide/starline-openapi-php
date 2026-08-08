@@ -1,4 +1,4 @@
-<?php namespace StarlineApi\Exceptions;
+<?php namespace Cruide\StarlineApi\Exceptions;
 /**
  * Транспортная ошибка (нет сети, таймаут, ошибка cURL).
  *

@@ -1,7 +1,7 @@
-<?php namespace StarlineApi\Tests\Models;
+<?php namespace Cruide\StarlineApi\Tests\Models;
 
 use PHPUnit\Framework\TestCase;
-use StarlineApi\Models\Device;
+use Cruide\StarlineApi\Models\Device;
 
 /**
  * @author Alexander Tischenko (http://alex-tisch.ru)

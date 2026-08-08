@@ -27,7 +27,7 @@ composer require cruide/starline-openapi-php
 ```json
 {
     "repositories": [
-        { "type": "path", "url": "../starline-api" }
+        { "type": "path", "url": "../cruide/starline-openapi-php" }
     ]
 }
 ```
@@ -53,8 +53,8 @@ composer require cruide/starline-openapi-php
 ## Быстрый старт
 
 ```php
-use StarlineApi\StarlineApi;
-use StarlineApi\Auth\FileTokenStorage;
+use Cruide\StarlineApi\StarlineApi;
+use Cruide\StarlineApi\Auth\FileTokenStorage;
 
 $api = new StarlineApi(
     appId: 123456,
@@ -102,7 +102,7 @@ foreach ($api->user()->devices() as $device) {
 
 ```php
 use Illuminate\Support\Facades\Cache;
-use StarlineApi\Auth\TokenStorageInterface;
+use Cruide\StarlineApi\Auth\TokenStorageInterface;
 
 final class CacheTokenStorage implements TokenStorageInterface
 {

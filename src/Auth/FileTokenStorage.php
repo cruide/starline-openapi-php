@@ -1,6 +1,6 @@
-<?php namespace StarlineApi\Auth;
+<?php namespace Cruide\StarlineApi\Auth;
 
-use StarlineApi\Exceptions\StarlineException;
+use Cruide\StarlineApi\Exceptions\StarlineException;
 
 /**
  * Файловое хранилище токенов (JSON).

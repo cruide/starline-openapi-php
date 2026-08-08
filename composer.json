@@ -1,18 +1,16 @@
 {
-    "name": "kengois/starline-api",
-    "description": "PHP-клиент StarLine OpenAPI (SLID-авторизация, состояние и управление устройствами)",
+    "name": "cruide/starline-openapi-php",
+    "description": "PHP client for StarLine OpenAPI",
     "type": "library",
-        "license": "MIT",
+    "license": "MIT",
     "authors": [
         {
             "name": "Alexander Tischenko",
             "homepage": "http://alex-tisch.ru"
         }
     ],
-    "keywords": ["starline", "starline-api", "slid", "telematics", "car-security"],
     "require": {
-        "php": ">=8.0",
-        "ext-curl": "*",
+        "php": "^8.0",
         "ext-json": "*"
     },
     "require-dev": {
@@ -20,14 +18,29 @@
     },
     "autoload": {
         "psr-4": {
-            "StarlineApi\\": "src/"
+            "Cruide\\StarlineApi\\": "src/"
         }
     },
     "autoload-dev": {
         "psr-4": {
-            "StarlineApi\\Tests\\": "tests/"
+            "Cruide\\StarlineApi\\Tests\\": "tests/"
         }
     },
+    "minimum-stability": "stable",
+    "prefer-stable": true,
+    "keywords": [
+        "php",
+        "starline",
+        "starline-api",
+        "openapi",
+        "client"
+    ],
+    "authors": [
+        {
+            "name": "Alexander Tishchenko",
+            "homepage": "https://github.com/cruide"
+        }
+    ],
     "scripts": {
         "test": "phpunit"
     },

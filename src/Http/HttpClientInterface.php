@@ -1,4 +1,4 @@
-<?php namespace StarlineApi\Http;
+<?php namespace Cruide\StarlineApi\Http;
 /**
  * Контракт HTTP-клиента.
  *

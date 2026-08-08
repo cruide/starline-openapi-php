@@ -21,7 +21,7 @@
 Самый простой сценарий: авторизация и вывод списка устройств.
 
 ```php
-use StarlineApi\StarlineApi;
+use Cruide\StarlineApi\StarlineApi;
 
 $api = new StarlineApi(
     appId: 123456,
@@ -42,8 +42,8 @@ foreach ($api->user()->devices() as $device) {
 Чтобы токены переживали перезапуск процесса (cron, демон):
 
 ```php
-use StarlineApi\Auth\FileTokenStorage;
-use StarlineApi\StarlineApi;
+use Cruide\StarlineApi\Auth\FileTokenStorage;
+use Cruide\StarlineApi\StarlineApi;
 
 $api = new StarlineApi(
     appId: 123456,
@@ -204,7 +204,7 @@ $info = $api->user()->info();
 
 ```php
 use Illuminate\Support\Facades\Cache;
-use StarlineApi\Auth\TokenStorageInterface;
+use Cruide\StarlineApi\Auth\TokenStorageInterface;
 
 final class CacheTokenStorage implements TokenStorageInterface
 {
@@ -238,8 +238,8 @@ $api = new StarlineApi(
 
 ```php
 use GuzzleHttp\Client;
-use StarlineApi\Http\HttpClientInterface;
-use StarlineApi\Http\Response;
+use Cruide\StarlineApi\Http\HttpClientInterface;
+use Cruide\StarlineApi\Http\Response;
 
 final class GuzzleHttpClient implements HttpClientInterface
 {
@@ -287,9 +287,9 @@ $api = new StarlineApi(
 ## Обработка ошибок
 
 ```php
-use StarlineApi\Exceptions\StarlineApiException;
-use StarlineApi\Exceptions\StarlineAuthException;
-use StarlineApi\Exceptions\StarlineHttpException;
+use Cruide\StarlineApi\Exceptions\StarlineApiException;
+use Cruide\StarlineApi\Exceptions\StarlineAuthException;
+use Cruide\StarlineApi\Exceptions\StarlineHttpException;
 
 try {
     $state = $api->devices()->state($deviceId);
