@@ -18,7 +18,8 @@ PHP-библиотека (клиент) для [StarLine OpenAPI](https://develo
 ## Установка
 
 ```bash
-composer require cruide/starline-api
+composer require cruide/starline-openapi-php
+
 ```
 
 или локально через `repositories` в composer.json:
