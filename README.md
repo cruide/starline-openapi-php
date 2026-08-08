@@ -1,4 +1,4 @@
-# StarlineApi
+# Starline OpenApi for PHP
 
 > Автор: [Alexander Tischenko](http://alex-tisch.ru)
 
@@ -18,7 +18,7 @@ PHP-библиотека (клиент) для [StarLine OpenAPI](https://develo
 ## Установка
 
 ```bash
-composer require kengois/starline-api
+composer require cruide/starline-api
 ```
 
 или локально через `repositories` в composer.json:
