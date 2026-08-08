@@ -150,7 +150,7 @@ final class AuthenticatorTest extends TestCase
         $http = new FakeHttpClient();
         $auth = new Authenticator($http, new InMemoryTokenStorage(), 1, 's');
 
-        $this->expectException(\StarlineApi\Exceptions\StarlineAuthException::class);
+        $this->expectException(\Cruide\StarlineApi\Exceptions\StarlineAuthException::class);
         $this->expectExceptionMessage('логин и пароль');
 
         $auth->getUserToken();

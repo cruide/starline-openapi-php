@@ -3,12 +3,23 @@
     "description": "PHP client for StarLine OpenAPI",
     "type": "library",
     "license": "MIT",
+    "keywords": [
+        "php",
+        "starline",
+        "starline-api",
+        "openapi",
+        "client"
+    ],
     "authors": [
         {
-            "name": "Alexander Tischenko",
-            "homepage": "http://alex-tisch.ru"
+            "name": "Alexander Tishchenko",
+            "homepage": "https://github.com/cruide"
         }
     ],
+    "support": {
+        "issues": "https://github.com/cruide/starline-openapi-php/issues",
+        "source": "https://github.com/cruide/starline-openapi-php"
+    },
     "require": {
         "php": "^8.0",
         "ext-json": "*"
@@ -26,23 +37,8 @@
             "Cruide\\StarlineApi\\Tests\\": "tests/"
         }
     },
-    "minimum-stability": "stable",
-    "prefer-stable": true,
-    "keywords": [
-        "php",
-        "starline",
-        "starline-api",
-        "openapi",
-        "client"
-    ],
-    "authors": [
-        {
-            "name": "Alexander Tishchenko",
-            "homepage": "https://github.com/cruide"
-        }
-    ],
     "scripts": {
-        "test": "phpunit"
+        "test": "@php vendor/bin/phpunit"
     },
     "config": {
         "sort-packages": true
