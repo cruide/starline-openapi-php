@@ -56,6 +56,9 @@ final class Authenticator
     private ?string $lastCaptchaSid = null;
     private ?string $lastCaptchaImg = null;
 
+    private ?OcrInterface $ocr = null;
+    private bool $autoCaptchaRetryDone = false;
+
     public function __construct(
         private HttpClientInterface $http,
         private TokenStorageInterface $storage,
@@ -127,10 +130,9 @@ final class Authenticator
     /**
      * Шаг 3. Получить токен пользователя по логину/паролю (кэшируется).
      *
-     * При запросе капчи или SMS-кода выбрасывает
-     * {@see StarlineAuthCaptchaException} — перехватите, получите
-     * captchaSid/captchaImg (или phone), запросите код у пользователя,
-     * вызовите {@see setCaptchaParams()} / {@see setSmsCode()} и повторите.
+     * Если установлен OCR-движок ({@see setOcr}), капча распознаётся
+     * автоматически и логин повторяется. Исключение выбрасывается только
+     * если автораспознавание не настроено, не удалось или капча неверна.
      *
      * @param bool $force Принудительно перелогиниться.
      * @throws StarlineAuthException
@@ -153,12 +155,42 @@ final class Authenticator
         }
 
         $appToken = $this->getAppToken();
+        $this->autoCaptchaRetryDone = false;
 
+        $token = $this->performLogin($appToken);
+
+        $this->storage->set(self::KEY_USER_TOKEN, $token);
+
+        return $token;
+    }
+
+    /**
+     * Одна попытка user/login с автоматическим ретраем капчи.
+     */
+    private function performLogin(string $appToken): string
+    {
         $response = $this->http->postForm(
             self::BASE_ID_URL . '/apiV3/user/login?token=' . urlencode($appToken),
             $this->buildLoginData()
         );
 
+        // Попытка автораспознавания капчи (один раз)
+        if ($this->ocr !== null && !$this->autoCaptchaRetryDone) {
+            $captchaInfo = $this->detectCaptcha($response);
+
+            if ($captchaInfo !== null) {
+                $code = $this->solveCaptcha($captchaInfo['img']);
+
+                if ($code !== null && $code !== '') {
+                    $this->setCaptchaParams($captchaInfo['sid'], $code);
+                    $this->autoCaptchaRetryDone = true;
+
+                    return $this->performLogin($appToken);
+                }
+            }
+        }
+
+        // Если капча/SMS остались — исключение
         $this->checkForCaptchaOrSms($response);
 
         $data = $this->decodeIdResponse($response, 'user/login');
@@ -167,8 +199,6 @@ final class Authenticator
         if (!is_string($token) || $token === '') {
             throw new StarlineAuthException('user/login: не получен desc.user_token.');
         }
-
-        $this->storage->set(self::KEY_USER_TOKEN, $token);
 
         return $token;
     }
@@ -305,6 +335,18 @@ final class Authenticator
     }
 
     /**
+     * Установить OCR-движок для автоматического распознавания капчи.
+     *
+     * Если задан, при запросе капчи библиотека сама скачает изображение,
+     * распознает код и повторит логин. Исключение будет выброшено только
+     * если авто-ретрай не помог.
+     */
+    public function setOcr(?OcrInterface $ocr): void
+    {
+        $this->ocr = $ocr;
+    }
+
+    /**
      * Сбросить все закэшированные токены (используется при переавторизации).
      */
     public function reset(): void
@@ -318,6 +360,7 @@ final class Authenticator
         $this->smsCode = null;
         $this->lastCaptchaSid = null;
         $this->lastCaptchaImg = null;
+        $this->autoCaptchaRetryDone = false;
     }
 
     /**
@@ -343,6 +386,56 @@ final class Authenticator
         }
 
         return $data;
+    }
+
+    /**
+     * Извлечь информацию о капче из ответа user/login (без исключения).
+     *
+     * @return array{sid: string, img: string}|null
+     */
+    private function detectCaptcha(Response $response): ?array
+    {
+        $raw = $response->json();
+
+        if (!is_array($raw) || !isset($raw['state']) || (int) $raw['state'] === 1) {
+            return null;
+        }
+
+        if ($response->statusCode >= 400) {
+            return null;
+        }
+
+        $desc = $raw['desc'] ?? [];
+
+        if (is_array($desc) && isset($desc['captchaSid'], $desc['captchaImg'])) {
+            $this->lastCaptchaSid = $desc['captchaSid'];
+            $this->lastCaptchaImg = $desc['captchaImg'];
+
+            return [
+                'sid' => $desc['captchaSid'],
+                'img' => $desc['captchaImg'],
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Скачать изображение капчи и распознать код.
+     */
+    private function solveCaptcha(string $imgUrl): ?string
+    {
+        try {
+            $response = $this->http->get($imgUrl);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        if ($response->body === '') {
+            return null;
+        }
+
+        return $this->ocr->decode($response->body);
     }
 
     /**

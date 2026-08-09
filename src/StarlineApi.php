@@ -112,6 +112,17 @@ final class StarlineApi
     }
 
     /**
+     * Установить OCR-движок для автораспознавания капчи.
+     *
+     * После этого authenticate() будет автоматически распознавать капчу
+     * и повторять логин без выброса исключения.
+     */
+    public function setOcr(OcrInterface $ocr): void
+    {
+        $this->auth->setOcr($ocr);
+    }
+
+    /**
      * Повторить авторизацию с параметрами капчи (после StarlineAuthCaptchaException).
      *
      * @throws StarlineAuthException

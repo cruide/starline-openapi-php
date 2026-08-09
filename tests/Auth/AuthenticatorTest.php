@@ -281,6 +281,175 @@ final class AuthenticatorTest extends TestCase
         }
     }
 
+    public function testAutoCaptchaRetrySucceedsWhenOcrSet(): void
+    {
+        $ocr = new class implements \Cruide\StarlineApi\Auth\OcrInterface {
+            public string $lastImage = '';
+
+            public function decode(string $imageData): ?string
+            {
+                $this->lastImage = $imageData;
+
+                return 'A1B2';
+            }
+        };
+
+        $http = new FakeHttpClient();
+        // getCode
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['code' => 'abc']])));
+        // getToken
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['token' => 'app-token']])));
+        // login — капча
+        $http->push(new Response(200, json_encode([
+            'state' => 0,
+            'desc' => [
+                'captchaSid' => 'sid-1',
+                'captchaImg' => 'https://id.starline.ru/captcha/x.png',
+            ],
+        ])));
+        // Скачивание капчи
+        $http->push(new Response(200, 'fake-png-data'));
+        // Повторный login с капчей — успех
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['user_token' => 'hash:99']])));
+
+        $auth = new Authenticator($http, new InMemoryTokenStorage(), 123, 'secret', 'u', 'p');
+        $auth->setOcr($ocr);
+
+        $token = $auth->getUserToken();
+
+        self::assertSame('hash:99', $token);
+        self::assertSame('fake-png-data', $ocr->lastImage);
+
+        // Проверяем, что в повторном login запросе есть captcha-параметры
+        self::assertSame('POST_FORM', $http->requests[4]['method']);
+        self::assertSame('sid-1', $http->requests[4]['data']['captchaSid']);
+        self::assertSame('A1B2', $http->requests[4]['data']['captchaCode']);
+    }
+
+    public function testAutoCaptchaFailsThenThrows(): void
+    {
+        // OCR возвращает null — автораспознавание не сработало
+        $ocr = new class implements \Cruide\StarlineApi\Auth\OcrInterface {
+            public function decode(string $imageData): ?string
+            {
+                return null;
+            }
+        };
+
+        $http = new FakeHttpClient();
+        // getCode
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['code' => 'abc']])));
+        // getToken
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['token' => 'app-token']])));
+        // login — капча
+        $http->push(new Response(200, json_encode([
+            'state' => 0,
+            'desc' => [
+                'captchaSid' => 'sid-fail',
+                'captchaImg' => 'https://id.starline.ru/captcha/fail.png',
+            ],
+        ])));
+
+        $auth = new Authenticator($http, new InMemoryTokenStorage(), 123, 'secret', 'u', 'p');
+        $auth->setOcr($ocr);
+
+        $this->expectException(StarlineAuthCaptchaException::class);
+        $auth->getUserToken();
+    }
+
+    public function testAutoCaptchaWrongCodeThenThrows(): void
+    {
+        // OCR возвращает код, но капча всё равно не проходит
+        $ocr = new class implements \Cruide\StarlineApi\Auth\OcrInterface {
+            public function decode(string $imageData): ?string
+            {
+                return 'WRONG';
+            }
+        };
+
+        $http = new FakeHttpClient();
+        // getCode
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['code' => 'abc']])));
+        // getToken
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['token' => 'app-token']])));
+        // login — капча (первая попытка)
+        $http->push(new Response(200, json_encode([
+            'state' => 0,
+            'desc' => [
+                'captchaSid' => 'sid-wrong',
+                'captchaImg' => 'https://id.starline.ru/captcha/wrong.png',
+            ],
+        ])));
+        // Скачивание капчи
+        $http->push(new Response(200, 'fake-png'));
+        // Повторный login — снова капча (код неверный)
+        $http->push(new Response(200, json_encode([
+            'state' => 0,
+            'desc' => [
+                'captchaSid' => 'sid-wrong-2',
+                'captchaImg' => 'https://id.starline.ru/captcha/wrong2.png',
+            ],
+        ])));
+
+        $auth = new Authenticator($http, new InMemoryTokenStorage(), 123, 'secret', 'u', 'p');
+        $auth->setOcr($ocr);
+
+        $this->expectException(StarlineAuthCaptchaException::class);
+        $auth->getUserToken();
+    }
+
+    public function testAutoCaptchaRetryOnlyOnce(): void
+    {
+        // Проверяем, что автоповтор капчи происходит только один раз,
+        // даже если второй ответ тоже содержит капчу (защита от бесконечного цикла)
+        $ocr = new class implements \Cruide\StarlineApi\Auth\OcrInterface {
+            public int $calls = 0;
+
+            public function decode(string $imageData): ?string
+            {
+                $this->calls++;
+
+                return 'X' . $this->calls;
+            }
+        };
+
+        $http = new FakeHttpClient();
+        // getCode
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['code' => 'abc']])));
+        // getToken
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['token' => 'app-token']])));
+        // login — капча #1
+        $http->push(new Response(200, json_encode([
+            'state' => 0,
+            'desc' => [
+                'captchaSid' => 'sid-1',
+                'captchaImg' => 'https://id.starline.ru/captcha/1.png',
+            ],
+        ])));
+        // Скачивание капчи #1
+        $http->push(new Response(200, 'png-1'));
+        // login — капча #2 (ретрай не помог)
+        $http->push(new Response(200, json_encode([
+            'state' => 0,
+            'desc' => [
+                'captchaSid' => 'sid-2',
+                'captchaImg' => 'https://id.starline.ru/captcha/2.png',
+            ],
+        ])));
+
+        $auth = new Authenticator($http, new InMemoryTokenStorage(), 123, 'secret', 'u', 'p');
+        $auth->setOcr($ocr);
+
+        try {
+            $auth->getUserToken();
+            self::fail('Expected exception.');
+        } catch (StarlineAuthCaptchaException $e) {
+            // OCR должен быть вызван ровно 1 раз, а не 2
+            self::assertSame(1, $ocr->calls);
+            self::assertSame('sid-2', $e->getCaptchaSid());
+        }
+    }
+
     public function testCaptchaParamsPassedOnRetry(): void
     {
         $http = new FakeHttpClient();
