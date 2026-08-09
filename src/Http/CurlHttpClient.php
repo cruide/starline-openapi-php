@@ -83,7 +83,7 @@ final class CurlHttpClient implements HttpClientInterface
             CURLOPT_MAXREDIRS => 5,
             CURLOPT_TIMEOUT => (int) ceil($this->timeout),
             CURLOPT_CONNECTTIMEOUT => min((int) ceil($this->timeout), 15),
-            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYPEER => false,
             CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_USERAGENT => $this->userAgent,
             CURLOPT_ACCEPT_ENCODING => '',
