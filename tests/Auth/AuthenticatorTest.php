@@ -3,6 +3,7 @@
 use PHPUnit\Framework\TestCase;
 use Cruide\StarlineApi\Auth\Authenticator;
 use Cruide\StarlineApi\Auth\InMemoryTokenStorage;
+use Cruide\StarlineApi\Exceptions\StarlineAuthCaptchaException;
 use Cruide\StarlineApi\Http\Response;
 use Cruide\StarlineApi\Tests\Support\FakeHttpClient;
 
@@ -219,5 +220,194 @@ final class AuthenticatorTest extends TestCase
 
         self::assertSame('cached-app', $auth->getAppToken());
         self::assertSame([], $http->requests);
+    }
+
+    public function testCaptchaRequiredThrowsException(): void
+    {
+        $http = new FakeHttpClient();
+        // getCode
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['code' => 'abc']])));
+        // getToken
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['token' => 'app-token']])));
+        // login — капча
+        $http->push(new Response(200, json_encode([
+            'state' => 0,
+            'desc' => [
+                'captchaSid' => 'captcha-sid-123',
+                'captchaImg' => 'https://id.starline.ru/captcha/img.png',
+            ],
+        ])));
+
+        $auth = new Authenticator($http, new InMemoryTokenStorage(), 123, 'secret', 'u', 'p');
+
+        try {
+            $auth->getUserToken();
+            self::fail('Expected StarlineAuthCaptchaException was not thrown.');
+        } catch (StarlineAuthCaptchaException $e) {
+            self::assertSame('captcha-sid-123', $e->getCaptchaSid());
+            self::assertSame('https://id.starline.ru/captcha/img.png', $e->getCaptchaImg());
+            self::assertNull($e->getPhone());
+            self::assertTrue($e->isCaptchaRequired());
+            self::assertFalse($e->isSmsRequired());
+        }
+    }
+
+    public function testSmsRequiredThrowsException(): void
+    {
+        $http = new FakeHttpClient();
+        // getCode
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['code' => 'abc']])));
+        // getToken
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['token' => 'app-token']])));
+        // login — SMS
+        $http->push(new Response(200, json_encode([
+            'state' => 0,
+            'desc' => [
+                'phone' => '+7 (999) ***-**-99',
+            ],
+        ])));
+
+        $auth = new Authenticator($http, new InMemoryTokenStorage(), 123, 'secret', 'u', 'p');
+
+        try {
+            $auth->getUserToken();
+            self::fail('Expected StarlineAuthCaptchaException was not thrown.');
+        } catch (StarlineAuthCaptchaException $e) {
+            self::assertNull($e->getCaptchaSid());
+            self::assertNull($e->getCaptchaImg());
+            self::assertSame('+7 (999) ***-**-99', $e->getPhone());
+            self::assertFalse($e->isCaptchaRequired());
+            self::assertTrue($e->isSmsRequired());
+        }
+    }
+
+    public function testCaptchaParamsPassedOnRetry(): void
+    {
+        $http = new FakeHttpClient();
+        // getCode
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['code' => 'code1']])));
+        // getToken
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['token' => 'app-token']])));
+        // login с капчей — успех
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['user_token' => 'hash:42']])));
+        // auth.slid
+        $http->push(new Response(200, json_encode(['user_id' => 42]), [
+            'set-cookie' => ['slnet=SLNET-TOKEN; Path=/'],
+        ]));
+
+        $auth = new Authenticator($http, new InMemoryTokenStorage(), 123, 'secret', 'u', 'p');
+        $auth->setCaptchaParams('my-captcha-sid', 'abc123');
+
+        $auth->getSlnetToken();
+
+        // Проверяем, что в login-запросе переданы captchaSid и captchaCode
+        self::assertSame('POST_FORM', $http->requests[2]['method']);
+        self::assertSame('my-captcha-sid', $http->requests[2]['data']['captchaSid']);
+        self::assertSame('abc123', $http->requests[2]['data']['captchaCode']);
+        self::assertSame('u', $http->requests[2]['data']['login']);
+        self::assertSame(sha1('p'), $http->requests[2]['data']['pass']);
+    }
+
+    public function testSmsCodePassedOnRetry(): void
+    {
+        $http = new FakeHttpClient();
+        // getCode
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['code' => 'code1']])));
+        // getToken
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['token' => 'app-token']])));
+        // login с SMS — успех
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['user_token' => 'hash:42']])));
+        // auth.slid
+        $http->push(new Response(200, json_encode(['user_id' => 42]), [
+            'set-cookie' => ['slnet=SLNET-TOKEN; Path=/'],
+        ]));
+
+        $auth = new Authenticator($http, new InMemoryTokenStorage(), 123, 'secret', 'u', 'p');
+        $auth->setSmsCode('123456');
+
+        $auth->getSlnetToken();
+
+        self::assertSame('POST_FORM', $http->requests[2]['method']);
+        self::assertSame('123456', $http->requests[2]['data']['smsCode']);
+    }
+
+    public function testResetClearsCaptchaParams(): void
+    {
+        $storage = new InMemoryTokenStorage();
+        $auth = new Authenticator(new FakeHttpClient(), $storage, 1, 's', 'u', 'p');
+        $auth->setCaptchaParams('sid', 'code');
+        $auth->setSmsCode('123456');
+
+        $auth->reset();
+
+        // Запрашиваем user_token через force — должны отправиться без капчи/SMS
+        $http = new FakeHttpClient();
+        // getCode
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['code' => 'abc']])));
+        // getToken
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['token' => 'app-token']])));
+        // login (после reset captcha/sms сброшены)
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['user_token' => 'hash:99']])));
+
+        // Пересоздаём auth с тем же storage, но новым http
+        $auth = new Authenticator($http, $storage, 1, 's', 'u', 'p');
+        $auth->getUserToken(true); // force=true чтобы обойти кэш приложения
+
+        $loginData = $http->requests[2]['data'];
+        self::assertArrayNotHasKey('captchaSid', $loginData);
+        self::assertArrayNotHasKey('captchaCode', $loginData);
+        self::assertArrayNotHasKey('smsCode', $loginData);
+        self::assertSame('u', $loginData['login']);
+    }
+
+    public function testCaptchaRetryViaStarlineApi(): void
+    {
+        $http = new FakeHttpClient();
+        // getCode
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['code' => 'abc']])));
+        // getToken
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['token' => 'app-token']])));
+        // login с капчей — успех
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['user_token' => 'hash:77']])));
+        // auth.slid
+        $http->push(new Response(200, json_encode(['user_id' => 77]), [
+            'set-cookie' => ['slnet=SLNET; Path=/'],
+        ]));
+
+        $api = new \Cruide\StarlineApi\StarlineApi(
+            appId: 123, appSecret: 'secret', login: 'u', password: 'p',
+            httpClient: $http,
+        );
+
+        $api->authenticateWithCaptcha('captcha-sid', '4xY9');
+
+        self::assertSame('POST_FORM', $http->requests[2]['method']);
+        self::assertSame('captcha-sid', $http->requests[2]['data']['captchaSid']);
+        self::assertSame('4xY9', $http->requests[2]['data']['captchaCode']);
+    }
+
+    public function testSmsRetryViaStarlineApi(): void
+    {
+        $http = new FakeHttpClient();
+        // getCode
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['code' => 'abc']])));
+        // getToken
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['token' => 'app-token']])));
+        // login с SMS — успех
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['user_token' => 'hash:88']])));
+        // auth.slid
+        $http->push(new Response(200, json_encode(['user_id' => 88]), [
+            'set-cookie' => ['slnet=SLNET; Path=/'],
+        ]));
+
+        $api = new \Cruide\StarlineApi\StarlineApi(
+            appId: 123, appSecret: 'secret', login: 'u', password: 'p',
+            httpClient: $http,
+        );
+
+        $api->authenticateWithSms('654321');
+
+        self::assertSame('POST_FORM', $http->requests[2]['method']);
+        self::assertSame('654321', $http->requests[2]['data']['smsCode']);
     }
 }

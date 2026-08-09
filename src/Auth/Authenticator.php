@@ -1,5 +1,6 @@
 <?php namespace Cruide\StarlineApi\Auth;
 
+use Cruide\StarlineApi\Exceptions\StarlineAuthCaptchaException;
 use Cruide\StarlineApi\Exceptions\StarlineAuthException;
 use Cruide\StarlineApi\Http\HttpClientInterface;
 use Cruide\StarlineApi\Http\Response;
@@ -47,6 +48,10 @@ final class Authenticator
     public const KEY_USER_ID = 'starline.user_id';
 
     private string $appId;
+
+    private ?string $captchaSid = null;
+    private ?string $captchaCode = null;
+    private ?string $smsCode = null;
 
     public function __construct(
         private HttpClientInterface $http,
@@ -119,8 +124,14 @@ final class Authenticator
     /**
      * Шаг 3. Получить токен пользователя по логину/паролю (кэшируется).
      *
+     * При запросе капчи или SMS-кода выбрасывает
+     * {@see StarlineAuthCaptchaException} — перехватите, получите
+     * captchaSid/captchaImg (или phone), запросите код у пользователя,
+     * вызовите {@see setCaptchaParams()} / {@see setSmsCode()} и повторите.
+     *
      * @param bool $force Принудительно перелогиниться.
      * @throws StarlineAuthException
+     * @throws StarlineAuthCaptchaException
      */
     public function getUserToken(bool $force = false): string
     {
@@ -142,11 +153,10 @@ final class Authenticator
 
         $response = $this->http->postForm(
             self::BASE_ID_URL . '/apiV3/user/login?token=' . urlencode($appToken),
-            [
-                'login' => $this->login,
-                'pass' => sha1($this->password),
-            ]
+            $this->buildLoginData()
         );
+
+        $this->checkForCaptchaOrSms($response);
 
         $data = $this->decodeIdResponse($response, 'user/login');
         $token = Arr::get($data, 'desc.user_token');
@@ -259,6 +269,23 @@ final class Authenticator
     }
 
     /**
+     * Установить параметры капчи для повторного user/login.
+     */
+    public function setCaptchaParams(string $captchaSid, string $captchaCode): void
+    {
+        $this->captchaSid = $captchaSid;
+        $this->captchaCode = $captchaCode;
+    }
+
+    /**
+     * Установить SMS-код для повторного user/login.
+     */
+    public function setSmsCode(string $smsCode): void
+    {
+        $this->smsCode = $smsCode;
+    }
+
+    /**
      * Сбросить все закэшированные токены (используется при переавторизации).
      */
     public function reset(): void
@@ -267,6 +294,72 @@ final class Authenticator
         $this->storage->delete(self::KEY_USER_TOKEN);
         $this->storage->delete(self::KEY_SLNET);
         $this->storage->delete(self::KEY_USER_ID);
+        $this->captchaSid = null;
+        $this->captchaCode = null;
+        $this->smsCode = null;
+    }
+
+    /**
+     * Собрать form-данные для user/login с учётом капчи и SMS.
+     *
+     * @return array<string, string>
+     */
+    private function buildLoginData(): array
+    {
+        $data = [
+            'login' => $this->login,
+            'pass' => sha1($this->password),
+        ];
+
+        if ($this->smsCode !== null && $this->smsCode !== '') {
+            $data['smsCode'] = $this->smsCode;
+        }
+
+        if ($this->captchaSid !== null && $this->captchaSid !== ''
+            && $this->captchaCode !== null && $this->captchaCode !== '') {
+            $data['captchaSid'] = $this->captchaSid;
+            $data['captchaCode'] = $this->captchaCode;
+        }
+
+        return $data;
+    }
+
+    /**
+     * Проверить ответ user/login на запрос капчи/SMS.
+     *
+     * @throws StarlineAuthCaptchaException
+     */
+    private function checkForCaptchaOrSms(Response $response): void
+    {
+        $raw = $response->json();
+
+        if (!is_array($raw) || !isset($raw['state']) || (int) $raw['state'] === 1) {
+            return;
+        }
+
+        // При успешном HTTP-ответе state в {0, 2} может быть капчой/SMS/другим
+        if ($response->statusCode >= 400) {
+            return;
+        }
+
+        $desc = $raw['desc'] ?? [];
+
+        if (is_array($desc) && isset($desc['captchaSid'])) {
+            throw new StarlineAuthCaptchaException(
+                'user/login: требуется ввод капчи. Получите изображение через getCaptchaImg(), '
+                . 'установите капчу через setCaptchaParams() и повторите попытку.',
+                $desc['captchaSid'] ?? null,
+                $desc['captchaImg'] ?? null,
+            );
+        }
+
+        if (is_array($desc) && isset($desc['phone'])) {
+            throw new StarlineAuthCaptchaException(
+                'user/login: требуется SMS-подтверждение. '
+                . 'Установите код через setSmsCode() и повторите попытку.',
+                phone: $desc['phone'] ?? null,
+            );
+        }
     }
 
     /**

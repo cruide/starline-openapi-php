@@ -111,6 +111,28 @@ final class StarlineApi
     }
 
     /**
+     * Повторить авторизацию с параметрами капчи (после StarlineAuthCaptchaException).
+     *
+     * @throws StarlineAuthException
+     */
+    public function authenticateWithCaptcha(string $captchaSid, string $captchaCode): void
+    {
+        $this->auth->setCaptchaParams($captchaSid, $captchaCode);
+        $this->auth->getSlnetToken(true);
+    }
+
+    /**
+     * Повторить авторизацию с SMS-кодом (после StarlineAuthCaptchaException).
+     *
+     * @throws StarlineAuthException
+     */
+    public function authenticateWithSms(string $smsCode): void
+    {
+        $this->auth->setSmsCode($smsCode);
+        $this->auth->getSlnetToken(true);
+    }
+
+    /**
      * GET-запрос к developer.starline.ru с авторизацией slnet.
      *
      * @param string $path Путь (например "/json/v3/device/123/data") либо полный URL.
