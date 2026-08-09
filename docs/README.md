@@ -58,7 +58,10 @@ foreach ($api->user()->devices() as $device) {
 
 ## Схема авторизации
 
-Библиотека реализует 4-шаговую SLID-авторизацию:
+Библиотека реализует 4-шаговую SLID-авторизацию, а также поддерживает
+прямую авторизацию через готовый StarLineID-токен:
+
+### SLID-цепочка
 
 | Шаг | Сервер | Метод | Эндпоинт | Результат |
 |-----|--------|-------|----------|-----------|
@@ -66,6 +69,17 @@ foreach ($api->user()->devices() as $device) {
 | 2 | `id.starline.ru` | GET | `/apiV3/application/getToken` | `token` (токен приложения, живёт 4 часа) |
 | 3 | `id.starline.ru` | POST | `/apiV3/user/login` | `user_token` (Slid-токен, живёт 1 год) |
 | 4 | `developer.starline.ru` | POST | `/json/v2/auth.slid` | `slnet` cookie (живёт 24 часа) |
+
+### StarLineID-токен
+
+Если токен уже получен (например, через OAuth на сервере StarLineID),
+шаги 1–3 пропускаются:
+
+```
+POST developer.starline.ru/json/v2/auth.slid
+Body: {"slid_token": "<StarLineID-токен>"}
+→ slnet cookie + user_id
+```
 
 Все токены кэшируются в `TokenStorageInterface` и переиспользуются.
 При получении **401/403** библиотека сбрасывает кэш и повторяет авторизацию **один раз**.
@@ -92,6 +106,11 @@ $api = new StarlineApi(
 | Метод | Возврат | Описание |
 |-------|---------|----------|
 | `authenticate(bool $force = false)` | `void` | Принудительная SLID-авторизация |
+| `authenticateWithSlidToken(string $token)` | `void` | Авторизация через StarLineID-токен |
+| `authenticateWithCaptcha(string $sid, string $code)` | `void` | Повторная авторизация с капчей |
+| `authenticateWithSms(string $code)` | `void` | Повторная авторизация с SMS-кодом |
+| `authenticateWithCaptchaAuto(OcrInterface $ocr)` | `void` | Авто-капча: скачать, OCR, повторить |
+| `setOcr(OcrInterface $ocr)` | `void` | Подключить автораспознавание капчи |
 | `user()` | `UserApi` | Доступ к методам пользователя |
 | `devices()` | `DeviceApi` | Доступ к методам устройств |
 | `setUserId(int $userId)` | `void` | Явно задать `user_id` (если автоопределение не сработало) |
@@ -187,6 +206,45 @@ $api = new StarlineApi(
 
 ---
 
+## OCR (распознавание капчи)
+
+Поддерживается два OCR-движка и возможность подключить свой через `OcrInterface`.
+
+### GdOcr — встроенный (чистый PHP)
+
+```php
+use Cruide\StarlineApi\Auth\GdOcr;
+
+$api->setOcr(new GdOcr());
+```
+
+Не требует внешних зависимостей кроме `ext-gd`. Использует признаковое
+сравнение (55 признаков: 5x5 зон + проекции), устойчивое к разным шрифтам.
+
+### TesseractOcr — через Tesseract
+
+```php
+use Cruide\StarlineApi\Auth\TesseractOcr;
+
+$api->setOcr(new TesseractOcr());
+```
+
+Требует `tesseract-ocr` в системе. Максимальная надёжность.
+
+### Свой OCR
+
+```php
+use Cruide\StarlineApi\Auth\OcrInterface;
+
+final class MyOcr implements OcrInterface
+{
+    public function decode(string $imageData): ?string
+    {
+        return $recognizedText;
+    }
+}
+```
+
 ## Хранение токенов
 
 ### InMemoryTokenStorage (по умолчанию)
@@ -231,6 +289,7 @@ final class MyTokenStorage implements TokenStorageInterface
 |------------|-------|
 | `StarlineException` | Базовое (наследует `\RuntimeException`) |
 | `StarlineAuthException` | Ошибка авторизации: неверные креды, истёкшие токены (после одной повторной попытки) |
+| `StarlineAuthCaptchaException` | Запрос капчи или SMS-кода. Методы: `getCaptchaSid()`, `getCaptchaImg()`, `getPhone()`, `isCaptchaRequired()`, `isSmsRequired()` |
 | `StarlineApiException` | Ошибка API: HTTP ≥ 400, `state ≠ 1`, `code ≥ 400`. Метод `getRaw()` возвращает сырой ответ |
 | `StarlineHttpException` | Транспортная ошибка: недоступен сервер, таймаут cURL |
 

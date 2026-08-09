@@ -5,6 +5,9 @@
 - [Минимальный пример](#минимальный-пример)
 - [Хранение токенов на диске](#хранение-токенов-на-диске)
 - [Явная авторизация](#явная-авторизация)
+- [Авторизация через StarLineID-токен](#авторизация-через-starlineid-токен)
+- [Капча и SMS-подтверждение](#капча-и-sms-подтверждение)
+- [Автоматическое распознавание капчи](#автоматическое-распознавание-капчи)
 - [Обход всех устройств и их состояния](#обход-всех-устройств-и-их-состояния)
 - [Команды устройству](#команды-устройству)
 - [События и история](#события-и-история)
@@ -29,6 +32,8 @@ $api = new StarlineApi(
     login: 'user@example.com',
     password: '***',
 );
+
+$api->authenticate();
 
 foreach ($api->user()->devices() as $device) {
     echo $device->id(), ' — ', ($device->alias() ?? 'без имени'), PHP_EOL;
@@ -66,6 +71,131 @@ $api = new StarlineApi(/*...*/);
 
 $api->authenticate();   // выполнить полную SLID-цепочку
 $api->authenticate(true); // сбросить кэш и переавторизоваться заново
+```
+
+---
+
+## Авторизация через StarLineID-токен
+
+Если у вас уже есть StarLineID-токен (формата `hash:user_id`), полученный
+через OAuth на сервере StarLineID, можно пропустить SLID-цепочку и сразу
+обменять его на slnet:
+
+```php
+$api = new StarlineApi(
+    appId: 123456,
+    appSecret: '***',
+    // Логин и пароль не нужны
+);
+
+$api->authenticateWithSlidToken('f6e706e17d41ce781b5166f09e782fd0:1663');
+
+// Дальше — обычные запросы
+$devices = $api->user()->devices();
+```
+
+---
+
+## Капча и SMS-подтверждение
+
+При подозрительной активности StarLine может запросить капчу или SMS-код.
+Библиотека выбрасывает `StarlineAuthCaptchaException` с данными для повторной
+авторизации:
+
+```php
+use Cruide\StarlineApi\Exceptions\StarlineAuthCaptchaException;
+
+try {
+    $api->authenticate();
+} catch (StarlineAuthCaptchaException $e) {
+    if ($e->isCaptchaRequired()) {
+        // Получить URL картинки: $e->getCaptchaImg()
+        // Получить sid: $e->getCaptchaSid()
+        // Показать пользователю, получить код и повторить:
+        $api->authenticateWithCaptcha($e->getCaptchaSid(), $codeFromUser);
+    }
+
+    if ($e->isSmsRequired()) {
+        // SMS отправлен на номер: $e->getPhone()
+        // Получить код от пользователя и повторить:
+        $api->authenticateWithSms($smsCode);
+    }
+}
+```
+
+---
+
+## Автоматическое распознавание капчи
+
+### GdOcr — чистый PHP (только ext-gd)
+
+```php
+use Cruide\StarlineApi\Auth\GdOcr;
+
+$api = new StarlineApi(/*...*/);
+$api->setOcr(new GdOcr());
+$api->authenticate();  // капча решится автоматически, исключения не будет
+```
+
+Настройка параметров бинаризации:
+
+```php
+$api->setOcr(new GdOcr(
+    threshold: 128,        // 0 = авто (OTSU), иначе фиксированный порог 0..255
+    minComponentSize: 10,  // минимальный размер символа (меньше — шум)
+    minSymbolWidth: 5,     // минимальная ширина сегмента
+));
+```
+
+### TesseractOcr — максимальная надёжность (требует `tesseract-ocr`)
+
+```bash
+# Установка
+apt-get install tesseract-ocr   # Debian/Ubuntu
+brew install tesseract          # macOS
+```
+
+```php
+use Cruide\StarlineApi\Auth\TesseractOcr;
+
+$api->setOcr(new TesseractOcr(
+    lang: 'eng',    // язык
+    psm: '8',       // режим сегментации (8 = одно слово)
+    extraFlags: '-c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ',
+));
+$api->authenticate();
+```
+
+### Ручной запуск авто-капчи
+
+Если OCR не настроен через `setOcr()`, можно вызвать его явно после
+перехвата исключения:
+
+```php
+try {
+    $api->authenticate();
+} catch (StarlineAuthCaptchaException $e) {
+    $api->authenticateWithCaptchaAuto(new GdOcr());
+}
+```
+
+### Свой OCR-движок
+
+Реализуйте `OcrInterface::decode(string $imageData): ?string`:
+
+```php
+use Cruide\StarlineApi\Auth\OcrInterface;
+
+final class MyOcr implements OcrInterface
+{
+    public function decode(string $imageData): ?string
+    {
+        // Отправить картинку в свой сервис распознавания
+        return $recognizedText;
+    }
+}
+
+$api->setOcr(new MyOcr());
 ```
 
 ---
@@ -288,6 +418,7 @@ $api = new StarlineApi(
 
 ```php
 use Cruide\StarlineApi\Exceptions\StarlineApiException;
+use Cruide\StarlineApi\Exceptions\StarlineAuthCaptchaException;
 use Cruide\StarlineApi\Exceptions\StarlineAuthException;
 use Cruide\StarlineApi\Exceptions\StarlineHttpException;
 
@@ -297,6 +428,15 @@ try {
     // Неверные App ID/Secret или логин/пароль.
     // Автоматический retry при 401 уже выполнен — здесь финальный провал.
     echo 'Ошибка авторизации: ', $e->getMessage(), PHP_EOL;
+} catch (StarlineAuthCaptchaException $e) {
+    // Требуется капча или SMS-код.
+    // Если OCR настроен — исключение означает, что даже авто-ретрай не помог.
+    if ($e->isCaptchaRequired()) {
+        echo 'Требуется капча: ', $e->getCaptchaImg(), PHP_EOL;
+    }
+    if ($e->isSmsRequired()) {
+        echo 'Требуется SMS на номер: ', $e->getPhone(), PHP_EOL;
+    }
 } catch (StarlineApiException $e) {
     // Ошибка API: невалидные параметры, недоступный эндпоинт и т.д.
     echo 'Ошибка API: ', $e->getMessage(), PHP_EOL;

@@ -8,6 +8,9 @@ PHP-библиотека (клиент) для [StarLine OpenAPI](https://develo
 
 - PHP **>= 8.0**, только `ext-curl` и `ext-json` — без внешних зависимостей;
 - полная SLID-авторизация с кэшированием токенов и автопереавторизацией при 401;
+- поддержка капчи и SMS-подтверждения при логине;
+- автоматическое распознавание капчи (чистый PHP GD либо Tesseract OCR);
+- авторизация через готовый StarLineID-токен (в обход SLID-цепочки);
 - типизированные модели (`UserInfo`, `Device`, `DeviceState`);
 - универсальный `request()` для любого эндпоинта из документации;
 - HTTP-клиент подменяемый (интерфейс) — легко подключить Guzzle/PSR-18.
@@ -52,9 +55,12 @@ composer require cruide/starline-openapi-php
 
 ## Быстрый старт
 
+### SLID-авторизация
+
 ```php
 use Cruide\StarlineApi\StarlineApi;
 use Cruide\StarlineApi\Auth\FileTokenStorage;
+use Cruide\StarlineApi\Auth\GdOcr;
 
 $api = new StarlineApi(
     appId: 123456,
@@ -64,6 +70,9 @@ $api = new StarlineApi(
     tokenStorage: new FileTokenStorage('/var/tmp/starline-tokens.json'),
 );
 
+// Автоматическое распознавание капчи (чистый PHP, только ext-gd)
+$api->setOcr(new GdOcr());
+
 $api->authenticate();
 
 foreach ($api->user()->devices() as $device) {
@@ -71,13 +80,40 @@ foreach ($api->user()->devices() as $device) {
 
     echo $device->alias(), ': ', $state->isArmed() ? 'охрана' : 'снято', PHP_EOL;
 }
+```
 
-// Команды:
-// $api->devices()->startEngine($deviceId);
-// $api->devices()->arm($deviceId);
+### StarLineID-токен
 
-// Произвольный эндпоинт:
-// $data = $api->get('/json/v3/device/' . $deviceId . '/data');
+```php
+$api = new StarlineApi(appId: 123, appSecret: '***');
+$api->authenticateWithSlidToken('hash:user_id');
+```
+
+### Ручная капча / SMS
+
+```php
+use Cruide\StarlineApi\Exceptions\StarlineAuthCaptchaException;
+
+try {
+    $api->authenticate();
+} catch (StarlineAuthCaptchaException $e) {
+    if ($e->isCaptchaRequired()) {
+        // Показать пользователю: $e->getCaptchaImg()
+        $api->authenticateWithCaptcha($e->getCaptchaSid(), $userInput);
+    } elseif ($e->isSmsRequired()) {
+        // SMS на номер: $e->getPhone()
+        $api->authenticateWithSms($smsCode);
+    }
+}
+```
+
+### Авто-капча + Tesseract (опционально, требует `tesseract-ocr`)
+
+```php
+use Cruide\StarlineApi\Auth\TesseractOcr;
+
+$api->setOcr(new TesseractOcr(lang: 'eng', psm: '8'));
+$api->authenticate();  // капча решится сама
 ```
 
 ## Основные методы
@@ -85,6 +121,11 @@ foreach ($api->user()->devices() as $device) {
 | Метод | Описание |
 |-------|----------|
 | `$api->authenticate(bool $force = false)` | Полная SLID-авторизация |
+| `$api->authenticateWithSlidToken(string $token)` | Авторизация через StarLineID-токен (в обход SLID) |
+| `$api->authenticateWithCaptcha(string $sid, string $code)` | Повторная авторизация с капчей |
+| `$api->authenticateWithSms(string $code)` | Повторная авторизация с SMS-кодом |
+| `$api->authenticateWithCaptchaAuto(OcrInterface $ocr)` | Авто-капча: скачивание, OCR, повтор |
+| `$api->setOcr(OcrInterface $ocr)` | Подключить автораспознавание капчи |
 | `$api->user()->id()` | user_id текущего пользователя |
 | `$api->user()->info()` | `UserInfo` (профиль + устройства) |
 | `$api->devices()->list()` | Список `Device` |
@@ -128,6 +169,7 @@ final class CacheTokenStorage implements TokenStorageInterface
 | Исключение | Когда |
 |------------|-------|
 | `StarlineAuthException` | неверные App ID/Secret/логин/пароль, истёкшие токены (после одной автоповторной попытки) |
+| `StarlineAuthCaptchaException` | запрос капчи или SMS-кода (если OCR не настроен или не справился) |
 | `StarlineApiException` | ошибки API (HTTP >= 400 или `state`/`code` != успех); `getRaw()` — сырой ответ |
 | `StarlineHttpException` | транспортные ошибки cURL |
 
