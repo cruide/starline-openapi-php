@@ -361,9 +361,16 @@ final class GdOcr implements OcrInterface
     }
 
     /**
+     * Размер сетки для нормализации символа.
+     */
+    private const GRID_W = 12;
+    private const GRID_H = 18;
+
+    /**
      * Распознать символ, нормализовав его и сравнив с эталонами.
      *
-     * Сравнивает попиксельно (Hamming distance) с эталонными сетками.
+     * Сравнивает по признаковому вектору (зоны + проекции) —
+     * устойчиво к разным шрифтам, в отличие от попиксельного сравнения.
      *
      * @param array $segment Информация о сегменте из segmentCharacters().
      */
@@ -377,9 +384,42 @@ final class GdOcr implements OcrInterface
             return '';
         }
 
-        // Нормализация в сетку 10×15
-        $gridW = 10;
-        $gridH = 15;
+        $norm = $this->normalizeSegment($segment, $pixels, $cw, $ch);
+        $features = $this->extractFeatures($norm);
+
+        $bestChar = '';
+        $bestDist = PHP_FLOAT_MAX;
+
+        foreach ($this->templates as $char => $templateFeatures) {
+            if (count($templateFeatures) !== count($features)) {
+                continue;
+            }
+
+            $dist = 0.0;
+
+            for ($i = 0, $len = count($features); $i < $len; $i++) {
+                $diff = $features[$i] - $templateFeatures[$i];
+                $dist += $diff * $diff;
+            }
+
+            if ($dist < $bestDist) {
+                $bestDist = $dist;
+                $bestChar = $char;
+            }
+        }
+
+        return $bestChar;
+    }
+
+    /**
+     * Нормализовать сегмент символа в сетку плотностей (0..1).
+     *
+     * @return array<int, array<int, float>>
+     */
+    private function normalizeSegment(array $segment, array $pixels, int $cw, int $ch): array
+    {
+        $gridW = self::GRID_W;
+        $gridH = self::GRID_H;
         $norm = [];
 
         for ($gy = 0; $gy < $gridH; $gy++) {
@@ -402,57 +442,95 @@ final class GdOcr implements OcrInterface
                     }
                 }
 
-                // Бинаризуем ячейку: > 50% заполнения → 1
-                $norm[$gy][$gx] = $total > 0 && ($count / $total) > 0.5 ? 1 : 0;
+                $norm[$gy][$gx] = $total > 0 ? $count / $total : 0.0;
             }
         }
 
-        // Поиск ближайшего эталона (Hamming distance по бинарной сетке)
-        $bestChar = '';
-        $bestDist = PHP_INT_MAX;
-
-        foreach ($this->templates as $char => $templateGrid) {
-            $dist = 0;
-
-            for ($gy = 0; $gy < $gridH; $gy++) {
-                for ($gx = 0; $gx < $gridW; $gx++) {
-                    if (($norm[$gy][$gx] ?? 0) !== ($templateGrid[$gy][$gx] ?? 0)) {
-                        $dist++;
-                    }
-                }
-            }
-
-            if ($dist < $bestDist) {
-                $bestDist = $dist;
-                $bestChar = $char;
-            }
-        }
-
-        return $bestChar;
+        return $norm;
     }
 
     /**
-     * Построить эталонные бинарные сетки для символов 0-9, a-z.
+     * Извлечь признаковый вектор из нормализованной сетки символа.
+     *
+     * Признаки (font-agnostic, всего 55):
+     *  - плотность в каждой из 5×5 зон (25);
+     *  - горизонтальная проекция: средняя плотность по каждому столбцу (12);
+     *  - вертикальная проекция: средняя плотность по каждой строке (18).
+     *
+     * @param array<int, array<int, float>> $norm Сетка $gridH × $gridW со значениями 0..1.
+     * @return array<int, float>
+     */
+    private function extractFeatures(array $norm): array
+    {
+        $gridW = self::GRID_W;
+        $gridH = self::GRID_H;
+        $features = [];
+
+        // 5×5 зоны
+        $zoneW = (int) ceil($gridW / 5);
+        $zoneH = (int) ceil($gridH / 5);
+
+        for ($zy = 0; $zy < 5; $zy++) {
+            for ($zx = 0; $zx < 5; $zx++) {
+                $sum = 0.0;
+                $cnt = 0;
+
+                for ($y = $zy * $zoneH; $y < min(($zy + 1) * $zoneH, $gridH); $y++) {
+                    for ($x = $zx * $zoneW; $x < min(($zx + 1) * $zoneW, $gridW); $x++) {
+                        $sum += $norm[$y][$x] ?? 0.0;
+                        $cnt++;
+                    }
+                }
+
+                $features[] = $cnt > 0 ? $sum / $cnt : 0.0;
+            }
+        }
+
+        // Горизонтальная проекция (по столбцам)
+        for ($x = 0; $x < $gridW; $x++) {
+            $sum = 0.0;
+
+            for ($y = 0; $y < $gridH; $y++) {
+                $sum += $norm[$y][$x] ?? 0.0;
+            }
+
+            $features[] = $sum / $gridH;
+        }
+
+        // Вертикальная проекция (по строкам)
+        for ($y = 0; $y < $gridH; $y++) {
+            $sum = 0.0;
+
+            for ($x = 0; $x < $gridW; $x++) {
+                $sum += $norm[$y][$x] ?? 0.0;
+            }
+
+            $features[] = $sum / $gridW;
+        }
+
+        return $features;
+    }
+
+    /**
+     * Построить эталонные признаковые векторы для символов 0-9, a-z.
      *
      * Каждый символ рендерится шрифтом GD, находится bounding box,
-     * и только он нормализуется в сетку 10×15 (бинаризуется).
+     * нормализуется, и извлекаются признаки через {@see extractFeatures()}.
      *
-     * @return array<string, array<int, array<int, int>>>
+     * @return array<string, array<int, float>>
      */
     private function buildTemplates(): array
     {
         $chars = '0123456789abcdefghijklmnopqrstuvwxyz';
         $templates = [];
 
-        $gridW = 10;
-        $gridH = 15;
-
-        $imgW = 14;
-        $imgH = 18;
-        $fontSize = 5;
+        $imgW = 20;
+        $imgH = 24;
 
         for ($i = 0; $i < strlen($chars); $i++) {
             $char = $chars[$i];
+
+            // Рендерим символ шрифтом 5 (крупный встроенный)
             $img = imagecreatetruecolor($imgW, $imgH);
 
             if ($img === false) {
@@ -463,9 +541,9 @@ final class GdOcr implements OcrInterface
             $black = (int) imagecolorallocate($img, 0, 0, 0);
 
             imagefill($img, 0, 0, $white);
-            imagestring($img, $fontSize, 2, 2, $char, $black);
+            imagestring($img, 5, 3, 3, $char, $black);
 
-            // Бинаризуем изображение чтобы найти bounding box
+            // Бинаризуем
             $binary = [];
 
             for ($y = 0; $y < $imgH; $y++) {
@@ -474,7 +552,7 @@ final class GdOcr implements OcrInterface
                 }
             }
 
-            // Находим bounding box символа
+            // Bounding box
             $minX = $imgW;
             $maxX = 0;
             $minY = $imgH;
@@ -496,38 +574,22 @@ final class GdOcr implements OcrInterface
 
             if ($cw <= 0 || $ch <= 0) {
                 imagedestroy($img);
+
                 continue;
             }
 
-            // Нормализуем bounding box в сетку 10×15
-            $norm = [];
+            // Нормализуем и извлекаем признаки
+            $segment = [
+                'minX' => $minX,
+                'maxX' => $maxX,
+                'minY' => $minY,
+                'maxY' => $maxY,
+            ];
 
-            for ($gy = 0; $gy < $gridH; $gy++) {
-                for ($gx = 0; $gx < $gridW; $gx++) {
-                    $count = 0;
-                    $total = 0;
-
-                    $sy = (int) ($minY + ($gy / $gridH) * $ch);
-                    $ey = (int) ($minY + (($gy + 1) / $gridH) * $ch);
-                    $sx = (int) ($minX + ($gx / $gridW) * $cw);
-                    $ex = (int) ($minX + (($gx + 1) / $gridW) * $cw);
-
-                    for ($y = $sy; $y <= $ey && $y < $imgH; $y++) {
-                        for ($x = $sx; $x <= $ex && $x < $imgW; $x++) {
-                            $total++;
-                            if ($binary[$y][$x]) {
-                                $count++;
-                            }
-                        }
-                    }
-
-                    $norm[$gy][$gx] = $total > 0 && ($count / $total) > 0.5 ? 1 : 0;
-                }
-            }
+            $norm = $this->normalizeSegment($segment, $binary, $cw, $ch);
+            $templates[$char] = $this->extractFeatures($norm);
 
             imagedestroy($img);
-
-            $templates[$char] = $norm;
         }
 
         return $templates;
