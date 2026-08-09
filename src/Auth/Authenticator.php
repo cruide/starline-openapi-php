@@ -239,6 +239,30 @@ final class Authenticator
     }
 
     /**
+     * Авторизация через готовый StarLineID-токен (в обход SLID-цепочки).
+     *
+     * Токен формата "<hash>:<user_id>" получается на сервере StarLineID
+     * (OAuth) и сразу обменивается на slnet через auth.slid.
+     *
+     * Не требует appId/appSecret/login/password — достаточно иметь
+     * HTTP-клиент и хранилище токенов.
+     *
+     * @param string $slidToken StarLineID-токен (user_token).
+     * @throws StarlineAuthException
+     */
+    public function authenticateWithSlidToken(string $slidToken): void
+    {
+        $slnet = $this->exchangeUserToken($slidToken);
+
+        if ($slnet === null) {
+            throw new StarlineAuthException('auth.slid не вернул cookie slnet. Проверьте slid_token.');
+        }
+
+        $this->storage->set(self::KEY_SLNET, $slnet);
+        $this->storage->set(self::KEY_USER_TOKEN, $slidToken);
+    }
+
+    /**
      * Определить user_id текущего пользователя.
      *
      * Стратегии (по убыванию приоритета):

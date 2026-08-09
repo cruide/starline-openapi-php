@@ -123,6 +123,22 @@ final class StarlineApi
     }
 
     /**
+     * Авторизация через готовый StarLineID-токен (в обход SLID).
+     *
+     * Токен формата "<hash>:<user_id>" получается через OAuth на сервере
+     * StarLineID и сразу обменивается на slnet.
+     *
+     * Не требует appId/appSecret/login/password в конструкторе.
+     *
+     * @param string $slidToken StarLineID-токен.
+     * @throws StarlineAuthException
+     */
+    public function authenticateWithSlidToken(string $slidToken): void
+    {
+        $this->auth->authenticateWithSlidToken($slidToken);
+    }
+
+    /**
      * Повторить авторизацию с параметрами капчи (после StarlineAuthCaptchaException).
      *
      * @throws StarlineAuthException

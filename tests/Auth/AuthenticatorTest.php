@@ -4,6 +4,7 @@ use PHPUnit\Framework\TestCase;
 use Cruide\StarlineApi\Auth\Authenticator;
 use Cruide\StarlineApi\Auth\InMemoryTokenStorage;
 use Cruide\StarlineApi\Exceptions\StarlineAuthCaptchaException;
+use Cruide\StarlineApi\Exceptions\StarlineAuthException;
 use Cruide\StarlineApi\Http\Response;
 use Cruide\StarlineApi\Tests\Support\FakeHttpClient;
 
@@ -691,5 +692,52 @@ final class AuthenticatorTest extends TestCase
         self::assertSame('POST_FORM', $http->requests[3]['method']);
         self::assertSame('captcha-sid-auto', $http->requests[3]['data']['captchaSid']);
         self::assertSame('ABCD', $http->requests[3]['data']['captchaCode']);
+    }
+
+    public function testAuthenticateWithSlidTokenDirectly(): void
+    {
+        $http = new FakeHttpClient();
+        $http->push(new Response(200, json_encode(['user_id' => 99]), [
+            'set-cookie' => ['slnet=DIRECT-SLNET; Path=/'],
+        ]));
+
+        $storage = new InMemoryTokenStorage();
+        $auth = new Authenticator($http, $storage, 123, 'secret');
+        $auth->authenticateWithSlidToken('deadbeef:99');
+
+        self::assertSame('DIRECT-SLNET', $storage->get(Authenticator::KEY_SLNET));
+        self::assertSame('deadbeef:99', $storage->get(Authenticator::KEY_USER_TOKEN));
+        self::assertSame('99', $storage->get(Authenticator::KEY_USER_ID));
+        self::assertSame(['slid_token' => 'deadbeef:99'], $http->requests[0]['data']);
+        self::assertStringEndsWith('/json/v2/auth.slid', $http->requests[0]['url']);
+    }
+
+    public function testAuthenticateWithSlidTokenFailsWithoutCookie(): void
+    {
+        $http = new FakeHttpClient();
+        $http->push(new Response(200, json_encode(['user_id' => 1])));
+
+        $auth = new Authenticator($http, new InMemoryTokenStorage(), 123, 'secret');
+
+        $this->expectException(StarlineAuthException::class);
+        $this->expectExceptionMessage('slnet');
+        $auth->authenticateWithSlidToken('bad-token');
+    }
+
+    public function testSlidTokenViaStarlineApi(): void
+    {
+        $http = new FakeHttpClient();
+        $http->push(new Response(200, json_encode(['user_id' => 55]), [
+            'set-cookie' => ['slnet=API-SLNET; Path=/'],
+        ]));
+
+        $api = new \Cruide\StarlineApi\StarlineApi(
+            appId: 123, appSecret: 'secret',
+            httpClient: $http,
+        );
+
+        $api->authenticateWithSlidToken('token:55');
+
+        self::assertSame(['slid_token' => 'token:55'], $http->requests[0]['data']);
     }
 }
