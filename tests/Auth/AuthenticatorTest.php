@@ -48,9 +48,10 @@ final class AuthenticatorTest extends TestCase
         self::assertSame(md5('secretabc123'), $http->requests[1]['data']['secret']);
         self::assertStringEndsWith('/apiV3/application/getToken', $http->requests[1]['url']);
 
-        // Шаг 3: user/login?token=app_token, pass = sha1(password)
+        // Шаг 3: user/login, pass = sha1(password), token в заголовке
         self::assertSame('POST_FORM', $http->requests[2]['method']);
-        self::assertStringContainsString('/apiV3/user/login?token=app-token', $http->requests[2]['url']);
+        self::assertStringEndsWith('/apiV3/user/login', $http->requests[2]['url']);
+        self::assertSame('app-token', $http->requests[2]['headers']['token']);
         self::assertSame(sha1('password'), $http->requests[2]['data']['pass']);
         self::assertSame('user@example.com', $http->requests[2]['data']['login']);
 

@@ -46,7 +46,7 @@ composer require cruide/starline-openapi-php
 |-----|--------|-----------|-----------|
 | 1 | `GET id.starline.ru/apiV3/application/getCode` | `appId`, `secret=md5(appSecret)` | код приложения |
 | 2 | `GET id.starline.ru/apiV3/application/getToken` | `appId`, `secret=md5(appSecret+code)` | токен приложения |
-| 3 | `POST id.starline.ru/apiV3/user/login` | `?token=<app_token>`, form: `login`, `pass=sha1(password)` | `user_token` |
+| 3 | `POST id.starline.ru/apiV3/user/login` | Header: `token: <app_token>`, form: `login`, `pass=sha1(password)` | `user_token` |
 | 4 | `POST developer.starline.ru/json/v2/auth.slid` | JSON: `{"slid_token":"<user_token>"}` | cookie `slnet` + `user_id` |
 
 Все дальнейшие запросы идут с заголовком `Cookie: slnet=<токен>`.

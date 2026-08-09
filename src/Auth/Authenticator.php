@@ -170,8 +170,9 @@ final class Authenticator
     private function performLogin(string $appToken): string
     {
         $response = $this->http->postForm(
-            self::BASE_ID_URL . '/apiV3/user/login?token=' . urlencode($appToken),
-            $this->buildLoginData()
+            self::BASE_ID_URL . '/apiV3/user/login',
+            $this->buildLoginData(),
+            ['token' => $appToken]
         );
 
         // Попытка автораспознавания капчи (один раз)
