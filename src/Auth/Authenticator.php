@@ -53,6 +53,9 @@ final class Authenticator
     private ?string $captchaCode = null;
     private ?string $smsCode = null;
 
+    private ?string $lastCaptchaSid = null;
+    private ?string $lastCaptchaImg = null;
+
     public function __construct(
         private HttpClientInterface $http,
         private TokenStorageInterface $storage,
@@ -286,6 +289,22 @@ final class Authenticator
     }
 
     /**
+     * Получить captchaSid последнего запроса капчи.
+     */
+    public function getLastCaptchaSid(): ?string
+    {
+        return $this->lastCaptchaSid;
+    }
+
+    /**
+     * Получить URL изображения последней капчи.
+     */
+    public function getLastCaptchaImg(): ?string
+    {
+        return $this->lastCaptchaImg;
+    }
+
+    /**
      * Сбросить все закэшированные токены (используется при переавторизации).
      */
     public function reset(): void
@@ -297,6 +316,8 @@ final class Authenticator
         $this->captchaSid = null;
         $this->captchaCode = null;
         $this->smsCode = null;
+        $this->lastCaptchaSid = null;
+        $this->lastCaptchaImg = null;
     }
 
     /**
@@ -345,6 +366,9 @@ final class Authenticator
         $desc = $raw['desc'] ?? [];
 
         if (is_array($desc) && isset($desc['captchaSid'])) {
+            $this->lastCaptchaSid = $desc['captchaSid'];
+            $this->lastCaptchaImg = $desc['captchaImg'] ?? null;
+
             throw new StarlineAuthCaptchaException(
                 'user/login: требуется ввод капчи. Получите изображение через getCaptchaImg(), '
                 . 'установите капчу через setCaptchaParams() и повторите попытку.',

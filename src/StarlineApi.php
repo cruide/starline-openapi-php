@@ -4,6 +4,7 @@ use Cruide\StarlineApi\Api\DeviceApi;
 use Cruide\StarlineApi\Api\UserApi;
 use Cruide\StarlineApi\Auth\Authenticator;
 use Cruide\StarlineApi\Auth\InMemoryTokenStorage;
+use Cruide\StarlineApi\Auth\OcrInterface;
 use Cruide\StarlineApi\Auth\TokenStorageInterface;
 use Cruide\StarlineApi\Exceptions\StarlineApiException;
 use Cruide\StarlineApi\Exceptions\StarlineAuthException;
@@ -130,6 +131,46 @@ final class StarlineApi
     {
         $this->auth->setSmsCode($smsCode);
         $this->auth->getSlnetToken(true);
+    }
+
+    /**
+     * Автоматически распознать капчу и повторить авторизацию.
+     *
+     * Загружает изображение капчи по URL из последнего исключения
+     * {@see StarlineAuthCaptchaException} и передаёт его OCR-движку.
+     *
+     * Требует предварительного вызова authenticate() (он должен упасть
+     * с {@see StarlineAuthCaptchaException}, из которого будет взят URL).
+     *
+     * @param OcrInterface $ocr OCR-движок (например {@see GdOcr}).
+     * @throws StarlineAuthException Если captchaSid или URL не найдены.
+     * @throws StarlineAuthException|StarlineApiException При ошибке сети или OCR.
+     */
+    public function authenticateWithCaptchaAuto(OcrInterface $ocr): void
+    {
+        $captchaSid = $this->auth->getLastCaptchaSid();
+        $captchaImg = $this->auth->getLastCaptchaImg();
+
+        if ($captchaSid === null || $captchaImg === null) {
+            throw new StarlineAuthException(
+                'Нет данных капчи. Сперва вызовите authenticate() и дождитесь StarlineAuthCaptchaException.'
+            );
+        }
+
+        $response = $this->http->get($captchaImg);
+        $imageData = $response->body;
+
+        if ($imageData === '') {
+            throw new StarlineAuthException('Не удалось загрузить изображение капчи.');
+        }
+
+        $code = $ocr->decode($imageData);
+
+        if ($code === null || $code === '') {
+            throw new StarlineAuthException('Не удалось распознать капчу автоматически.');
+        }
+
+        $this->authenticateWithCaptcha($captchaSid, $code);
     }
 
     /**

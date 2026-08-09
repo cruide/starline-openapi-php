@@ -410,4 +410,117 @@ final class AuthenticatorTest extends TestCase
         self::assertSame('POST_FORM', $http->requests[2]['method']);
         self::assertSame('654321', $http->requests[2]['data']['smsCode']);
     }
+
+    public function testLastCaptchaInfoStoredOnAuthError(): void
+    {
+        $http = new FakeHttpClient();
+        // getCode
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['code' => 'abc']])));
+        // getToken
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['token' => 'app-token']])));
+        // login — капча
+        $http->push(new Response(200, json_encode([
+            'state' => 0,
+            'desc' => [
+                'captchaSid' => 'sid-999',
+                'captchaImg' => 'https://id.starline.ru/captcha/999.png',
+            ],
+        ])));
+
+        $auth = new Authenticator($http, new InMemoryTokenStorage(), 123, 'secret', 'u', 'p');
+
+        try {
+            $auth->getUserToken();
+        } catch (StarlineAuthCaptchaException $e) {
+            self::assertSame('sid-999', $e->getCaptchaSid());
+            self::assertSame('https://id.starline.ru/captcha/999.png', $e->getCaptchaImg());
+        }
+
+        self::assertSame('sid-999', $auth->getLastCaptchaSid());
+        self::assertSame('https://id.starline.ru/captcha/999.png', $auth->getLastCaptchaImg());
+    }
+
+    public function testLastCaptchaClearedOnReset(): void
+    {
+        $http = new FakeHttpClient();
+        // getCode
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['code' => 'abc']])));
+        // getToken
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['token' => 'app-token']])));
+        // login — капча
+        $http->push(new Response(200, json_encode([
+            'state' => 0,
+            'desc' => [
+                'captchaSid' => 'sid-999',
+                'captchaImg' => 'https://id.starline.ru/captcha/999.png',
+            ],
+        ])));
+
+        $auth = new Authenticator($http, new InMemoryTokenStorage(), 123, 'secret', 'u', 'p');
+
+        try {
+            $auth->getUserToken();
+        } catch (StarlineAuthCaptchaException) {
+            // expected
+        }
+
+        self::assertSame('sid-999', $auth->getLastCaptchaSid());
+        $auth->reset();
+        self::assertNull($auth->getLastCaptchaSid());
+        self::assertNull($auth->getLastCaptchaImg());
+    }
+
+    public function testAuthenticateWithCaptchaAuto(): void
+    {
+        // Mock OCR that always returns 'ABCD'
+        $ocr = new class implements \Cruide\StarlineApi\Auth\OcrInterface {
+            public string $lastImageData = '';
+
+            public function decode(string $imageData): ?string
+            {
+                $this->lastImageData = $imageData;
+
+                return 'ABCD';
+            }
+        };
+
+        $http = new FakeHttpClient();
+        // Загрузка капчи
+        $http->push(new Response(200, 'fake-png-bytes'));
+        // getCode
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['code' => 'abc']])));
+        // getToken
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['token' => 'app-token']])));
+        // login с капчей
+        $http->push(new Response(200, json_encode(['state' => 1, 'desc' => ['user_token' => 'hash:99']])));
+        // auth.slid
+        $http->push(new Response(200, json_encode(['user_id' => 99]), [
+            'set-cookie' => ['slnet=SLNET; Path=/'],
+        ]));
+
+        $api = new \Cruide\StarlineApi\StarlineApi(
+            appId: 123, appSecret: 'secret', login: 'u', password: 'p',
+            httpClient: $http,
+        );
+        $api->authenticator()->setCaptchaParams('manual-sid-not-used', '');
+
+        // Симулируем сохранение captchaInfo как после StarlineAuthCaptchaException
+        $reflector = new \ReflectionClass($api->authenticator());
+        $propSid = $reflector->getProperty('lastCaptchaSid');
+        $propSid->setAccessible(true);
+        $propSid->setValue($api->authenticator(), 'captcha-sid-auto');
+        $propImg = $reflector->getProperty('lastCaptchaImg');
+        $propImg->setAccessible(true);
+        $propImg->setValue($api->authenticator(), 'https://id.starline.ru/captcha/auto.png');
+
+        $api->authenticateWithCaptchaAuto($ocr);
+
+        // Проверяем, что изображение скачано и передано в OCR
+        self::assertSame('fake-png-bytes', $ocr->lastImageData);
+
+        // Проверяем, что в login-запросе передан код из OCR
+        self::assertSame('POST_FORM', $http->requests[3]['method']);
+        self::assertSame('captcha-sid-auto', $http->requests[3]['data']['captchaSid']);
+        self::assertSame('ABCD', $http->requests[3]['data']['captchaCode']);
+    }
 }
