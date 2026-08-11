@@ -50,6 +50,16 @@ final class DeviceApi
     }
 
     /**
+     * Детальная информация об устройстве (состояние автомобиля, датчики, управление).
+     *
+     * POST /json/v1/device/{device_id}/details
+     */
+    public function details(int|string $deviceId): array
+    {
+        return $this->client->post(sprintf('/json/v1/device/%s/details', $deviceId));
+    }
+
+    /**
      * Установка параметров (команды устройству).
      *
      * POST /json/v1/device/{device_id}/set_param

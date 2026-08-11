@@ -69,6 +69,27 @@ final class DeviceApiTest extends TestCase
         self::assertSame('30.350255', $result['device']['position']['lon']);
     }
 
+    public function testDetails(): void
+    {
+        $this->http->push(new Response(200, json_encode([
+            'code' => 200,
+            'desc' => [
+                'data' => [
+                    'device_id' => 123456789,
+                    'alias' => 'A97 123456789',
+                    'battery' => 12.1,
+                    'car_state' => ['arm' => true],
+                ],
+            ],
+        ])));
+
+        $result = $this->api->devices()->details(123456789);
+
+        self::assertSame('POST_JSON', $this->http->requests[0]['method']);
+        self::assertStringEndsWith('/json/v1/device/123456789/details', $this->http->requests[0]['url']);
+        self::assertSame(12.1, $result['data']['battery']);
+    }
+
     public function testSetParam(): void
     {
         $this->http->push(new Response(200, json_encode([
