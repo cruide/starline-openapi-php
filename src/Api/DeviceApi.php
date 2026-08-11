@@ -112,18 +112,18 @@ final class DeviceApi
     /**
      * События устройства за период.
      *
-     * GET /json/v3/device/{device_id}/events
+     * POST /json/v2/device/{device_id}/events
      *
-     * @param int $tsFrom Начало периода, unixtime.
-     * @param int $tsTo Конец периода, unixtime.
-     * @param array<string, scalar|null> $extra Дополнительные query-параметры.
+     * @param int $periodStart Начало периода, unixtime (UTC).
+     * @param int $periodEnd Конец периода, unixtime (UTC).
+     * @param array<string, scalar|null> $extra Дополнительные параметры в теле запроса.
      * @return array<mixed>
      */
-    public function events(int|string $deviceId, int $tsFrom, int $tsTo, array $extra = []): array
+    public function events(int|string $deviceId, int $periodStart, int $periodEnd, array $extra = []): array
     {
-        return $this->client->get(
-            sprintf('/json/v3/device/%s/events', $deviceId),
-            array_merge(['ts_from' => $tsFrom, 'ts_to' => $tsTo], $extra)
+        return $this->client->post(
+            sprintf('/json/v2/device/%s/events', $deviceId),
+            array_merge(['period_start' => $periodStart, 'period_end' => $periodEnd], $extra)
         );
     }
 

@@ -141,9 +141,9 @@ final class DeviceApiTest extends TestCase
 
         $this->api->devices()->events(1, 100, 200);
 
-        self::assertSame('GET', $this->http->requests[0]['method']);
-        self::assertStringEndsWith('/json/v3/device/1/events', $this->http->requests[0]['url']);
-        self::assertSame(['ts_from' => 100, 'ts_to' => 200], $this->http->requests[0]['data']);
+        self::assertSame('POST_JSON', $this->http->requests[0]['method']);
+        self::assertStringEndsWith('/json/v2/device/1/events', $this->http->requests[0]['url']);
+        self::assertSame(['period_start' => 100, 'period_end' => 200], $this->http->requests[0]['data']);
     }
 
     public function testWays(): void
@@ -230,7 +230,7 @@ final class DeviceApiTest extends TestCase
         $this->api->devices()->events(1, 100, 200, ['limit' => 50]);
 
         self::assertSame(
-            ['ts_from' => 100, 'ts_to' => 200, 'limit' => 50],
+            ['period_start' => 100, 'period_end' => 200, 'limit' => 50],
             $this->http->requests[0]['data']
         );
     }

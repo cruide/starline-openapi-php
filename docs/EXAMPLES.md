@@ -262,13 +262,14 @@ $api->devices()->setParam($deviceId, [
 ### События устройства за период
 
 ```php
-$from = strtotime('2026-08-01 00:00:00');
-$to   = strtotime('2026-08-08 00:00:00');
+$periodStart = strtotime('2026-08-01 00:00:00');
+$periodEnd   = strtotime('2026-08-08 00:00:00');
 
-$events = $api->devices()->events($deviceId, $from, $to);
+$events = $api->devices()->events($deviceId, $periodStart, $periodEnd);
 
 foreach ($events['events'] ?? [] as $event) {
-    echo date('Y-m-d H:i:s', $event['ts'] ?? 0), ' — ', $event['event_type'] ?? '?', PHP_EOL;
+    echo date('Y-m-d H:i:s', $event['timestamp'] ?? 0),
+         ' — ', $event['type'] ?? '?', PHP_EOL;
 }
 ```
 
@@ -318,7 +319,7 @@ foreach ($track['way'] as $segment) {
 дополнительных параметров (см. документацию StarLine):
 
 ```php
-$events = $api->devices()->events($deviceId, $from, $to, ['limit' => 100]);
+$events = $api->devices()->events($deviceId, $periodStart, $periodEnd, ['limit' => 100]);
 ```
 
 ---
