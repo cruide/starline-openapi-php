@@ -48,6 +48,22 @@ final class UserInfoTest extends TestCase
         self::assertSame('Car 2', $devices[1]->alias());
     }
 
+    public function testSharedDevices(): void
+    {
+        $info = new UserInfo([
+            'devices' => [
+                ['device_id' => 1, 'alias' => 'Car 1'],
+            ],
+            'shared_devices' => [
+                ['device_id' => 3, 'alias' => 'Shared Car'],
+            ],
+        ]);
+
+        self::assertCount(1, $info->sharedDevices());
+        self::assertSame(3, $info->sharedDevices()[0]->id());
+        self::assertCount(1, $info->devices());
+    }
+
     public function testDevicesEmptyWhenMissing(): void
     {
         $info = new UserInfo([]);

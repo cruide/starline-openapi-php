@@ -310,13 +310,7 @@ foreach ($all['eventDescriptions'] as $event) {
 
 ### GPS-история
 
-```php
-$tracks = $api->devices()->history($deviceId, $from, $to);
-
-foreach ($tracks['tracks'] ?? [] as $track) {
-    echo 'Lat: ', $track['lat'] ?? '?', ' Lon: ', $track['lon'] ?? '?', PHP_EOL;
-}
-```
+Для получения GPS-трека используйте метод `ways()` (см. раздел [Трек устройства](#трек-устройства)).
 
 ### Трек устройства
 
@@ -350,7 +344,7 @@ foreach ($track['way'] as $segment) {
 
 ### Дополнительные параметры
 
-Методы `events()`, `history()` и `ways()` принимают последним аргументом массив
+Методы `events()` и `ways()` принимают последним аргументом массив
 дополнительных параметров (см. документацию StarLine):
 
 ```php

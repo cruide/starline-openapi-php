@@ -98,15 +98,10 @@ final class AuthenticatorTest extends TestCase
 
     public function testUserIdFallbackFromUserToken(): void
     {
-        $http = new FakeHttpClient();
-        // GET /json/v1/user_info вернул 404
-        $http->push(new Response(404, 'Not Found'));
-
         $storage = new InMemoryTokenStorage();
-        $storage->set(Authenticator::KEY_SLNET, 'slnet-x');
         $storage->set(Authenticator::KEY_USER_TOKEN, 'deadbeef:777');
 
-        $auth = new Authenticator($http, $storage, 1, 's', 'u', 'p');
+        $auth = new Authenticator(new FakeHttpClient(), $storage, 1, 's', 'u', 'p');
 
         self::assertSame(777, $auth->getUserId());
     }

@@ -227,20 +227,6 @@ final class DeviceApiTest extends TestCase
         ], $this->http->requests[0]['data']);
     }
 
-    public function testHistory(): void
-    {
-        $this->http->push(new Response(200, json_encode([
-            'code' => 200,
-            'desc' => ['history' => []],
-        ])));
-
-        $this->api->devices()->history(1, 100, 200);
-
-        self::assertSame('GET', $this->http->requests[0]['method']);
-        self::assertStringEndsWith('/json/v3/device/1/history', $this->http->requests[0]['url']);
-        self::assertSame(['from' => 100, 'to' => 200], $this->http->requests[0]['data']);
-    }
-
     public function testEventsWithExtraParams(): void
     {
         $this->http->push(new Response(200, json_encode([
@@ -299,8 +285,7 @@ final class DeviceApiTest extends TestCase
         $storage = new InMemoryTokenStorage();
         $storage->set(Authenticator::KEY_SLNET, 'slnet-x');
         $storage->set(Authenticator::KEY_USER_TOKEN, 'hash:1');
-        $this->http->push(new Response(404, 'Not Found'));
-        // GET /json/v1/user/1/user_info
+        // GET /json/v2/user/1/user_info
         $this->http->push(new Response(200, json_encode([
             'code' => 200,
             'desc' => [

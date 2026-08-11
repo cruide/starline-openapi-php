@@ -268,9 +268,8 @@ final class Authenticator
      *
      * Стратегии (по убыванию приоритета):
      * 1) кэш;
-     * 2) GET /json/v1/user_info (если поддерживается текущей версией API);
-     * 3) разбор user_token формата "<hash>:<user_id>";
-     * 4) явная установка через {@see setUserId()}.
+     * 2) разбор user_token формата "<hash>:<user_id>";
+     * 3) явная установка через {@see setUserId()}.
      *
      * @throws StarlineAuthException
      */
@@ -281,23 +280,6 @@ final class Authenticator
 
             if ($cached !== null && ctype_digit($cached)) {
                 return (int) $cached;
-            }
-        }
-
-        $slnet = $this->getSlnetToken();
-
-        $response = $this->http->get(self::BASE_API_URL . '/json/v1/user_info', [], [
-            'Cookie' => 'slnet=' . $slnet,
-        ]);
-
-        if ($response->statusCode === 200) {
-            $data = $response->json();
-            $id = is_array($data) ? Arr::get($data, 'desc.id') : null;
-
-            if (is_numeric($id)) {
-                $this->storage->set(self::KEY_USER_ID, (string) (int) $id);
-
-                return (int) $id;
             }
         }
 

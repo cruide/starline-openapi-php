@@ -137,7 +137,6 @@ $api->authenticate();  // капча решится сама
 | `$api->devices()->events($deviceId, $periodStart, $periodEnd)` | События за период |
 | `$api->devices()->eventType($id)` | Описание одного типа события |
 | `$api->devices()->eventTypes()` | Библиотека всех типов событий |
-| `$api->devices()->history($deviceId, $from, $to)` | GPS-история за период |
 | `$api->devices()->ways($deviceId, $begin, $end, $extra)` | Трек (координаты, пробег, время в движении) |
 | `$api->get($path, $query)` / `$api->post($path, $json)` | Универсальные запросы |
 

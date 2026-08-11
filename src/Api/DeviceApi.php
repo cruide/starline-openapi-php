@@ -156,24 +156,6 @@ final class DeviceApi
     }
 
     /**
-     * История перемещений/стоянок (GPS-трек) за период.
-     *
-     * GET /json/v3/device/{device_id}/history
-     *
-     * @param int $from Начало периода, unixtime.
-     * @param int $to Конец периода, unixtime.
-     * @param array<string, scalar|null> $extra Дополнительные query-параметры.
-     * @return array<mixed>
-     */
-    public function history(int|string $deviceId, int $from, int $to, array $extra = []): array
-    {
-        return $this->client->get(
-            sprintf('/json/v3/device/%s/history', $deviceId),
-            array_merge(['from' => $from, 'to' => $to], $extra)
-        );
-    }
-
-    /**
      * Описание одного типа события.
      *
      * GET /json/v3/library/events/{id}

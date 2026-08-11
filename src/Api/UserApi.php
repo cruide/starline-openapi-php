@@ -26,11 +26,11 @@ final class UserApi
     /**
      * Информация о пользователе и его устройствах.
      *
-     * GET /json/v1/user/{user_id}/user_info
+     * GET /json/v2/user/{user_id}/user_info
      */
     public function info(): UserInfo
     {
-        $data = $this->client->get('/json/v1/user/' . $this->id() . '/user_info');
+        $data = $this->client->get('/json/v2/user/' . $this->id() . '/user_info');
 
         return new UserInfo($data);
     }

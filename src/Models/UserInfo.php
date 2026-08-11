@@ -10,7 +10,7 @@ use Cruide\StarlineApi\Support\Arr;
 final class UserInfo
 {
     /**
-     * @param array<mixed> $raw Содержимое desc из /json/v1/user/{id}/user_info.
+     * @param array<mixed> $raw Содержимое desc из /json/v2/user/{id}/user_info.
      */
     public function __construct(private array $raw)
     {
@@ -45,6 +45,30 @@ final class UserInfo
     public function devices(): array
     {
         $devices = Arr::get($this->raw, 'devices', []);
+
+        if (!is_array($devices)) {
+            return [];
+        }
+
+        $result = [];
+
+        foreach ($devices as $device) {
+            if (is_array($device)) {
+                $result[] = new Device($device);
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Устройства, расшаренные для текущего пользователя.
+     *
+     * @return Device[]
+     */
+    public function sharedDevices(): array
+    {
+        $devices = Arr::get($this->raw, 'shared_devices', []);
 
         if (!is_array($devices)) {
             return [];
