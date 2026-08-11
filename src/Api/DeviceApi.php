@@ -116,6 +116,24 @@ final class DeviceApi
     }
 
     /**
+     * Трек устройства (GPS-координаты, пробег, время в движении) за период.
+     *
+     * POST /json/v1/device/{device_id}/ways
+     *
+     * @param int $begin Начало периода, unixtime.
+     * @param int $end Конец периода, unixtime.
+     * @param array<string, scalar|null> $extra Дополнительные параметры (split_way, short_parking, long_parking, dt_max, div_days, time_shift, tz, filtering).
+     * @return array<mixed>
+     */
+    public function ways(int|string $deviceId, int $begin, int $end, array $extra = []): array
+    {
+        return $this->client->post(
+            sprintf('/json/v1/device/%s/ways', $deviceId),
+            array_merge(['begin' => $begin, 'end' => $end], $extra)
+        );
+    }
+
+    /**
      * История перемещений/стоянок (GPS-трек) за период.
      *
      * GET /json/v3/device/{device_id}/history

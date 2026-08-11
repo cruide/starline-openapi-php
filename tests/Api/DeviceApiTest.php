@@ -122,6 +122,66 @@ final class DeviceApiTest extends TestCase
         self::assertSame(['ts_from' => 100, 'ts_to' => 200], $this->http->requests[0]['data']);
     }
 
+    public function testWays(): void
+    {
+        $wayData = [
+            ['type' => 'TZ', 'offset' => '+0300', 'name' => 'Europe/Moscow', 'time_shift' => 10800],
+            [
+                'type' => 'TRACK',
+                'waiting_time' => 0,
+                'mileage' => 7304,
+                'nodes' => [
+                    ['x' => 59.9833, 'y' => 30.398306, 't' => 1490601673, 'z' => 0],
+                    ['x' => 59.982786, 'y' => 30.397736, 't' => 1490601705, 'z' => 0],
+                ],
+                'moving_time' => 1410,
+            ],
+            ['type' => 'STOP', 'waiting_time' => 29804, 'x' => 59.962397, 'y' => 30.351881, 't' => 1490603083, 'z' => 0],
+        ];
+
+        $this->http->push(new Response(200, json_encode([
+            'code' => 200,
+            'desc' => [
+                'waiting_time' => 40885,
+                'mileage' => 7304,
+                'moving_time' => 1410,
+                'way' => $wayData,
+            ],
+        ])));
+
+        $result = $this->api->devices()->ways(4568857, 1498424400, 1498510799);
+
+        self::assertSame('POST_JSON', $this->http->requests[0]['method']);
+        self::assertStringEndsWith('/json/v1/device/4568857/ways', $this->http->requests[0]['url']);
+        self::assertSame(['begin' => 1498424400, 'end' => 1498510799], $this->http->requests[0]['data']);
+        self::assertSame(40885, $result['waiting_time']);
+        self::assertSame(7304, $result['mileage']);
+        self::assertSame(1410, $result['moving_time']);
+        self::assertSame($wayData, $result['way']);
+    }
+
+    public function testWaysWithExtraParams(): void
+    {
+        $this->http->push(new Response(200, json_encode([
+            'code' => 200,
+            'desc' => ['waiting_time' => 0, 'mileage' => 0, 'moving_time' => 0, 'way' => []],
+        ])));
+
+        $this->api->devices()->ways(1, 100, 200, [
+            'split_way' => true,
+            'short_parking' => 5,
+            'dt_max' => 2,
+        ]);
+
+        self::assertSame([
+            'begin' => 100,
+            'end' => 200,
+            'split_way' => true,
+            'short_parking' => 5,
+            'dt_max' => 2,
+        ], $this->http->requests[0]['data']);
+    }
+
     public function testHistory(): void
     {
         $this->http->push(new Response(200, json_encode([
