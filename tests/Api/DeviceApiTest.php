@@ -45,6 +45,30 @@ final class DeviceApiTest extends TestCase
         self::assertStringEndsWith('/json/v3/device/42/data', $this->http->requests[0]['url']);
     }
 
+    public function testPosition(): void
+    {
+        $this->http->push(new Response(200, json_encode([
+            'code' => 200,
+            'desc' => [
+                'device' => [
+                    'position' => [
+                        'lat' => '59.962913',
+                        'lon' => '30.350255',
+                        'ts' => '2014-10-07 12:05:57',
+                        'pres' => '550',
+                    ],
+                ],
+            ],
+        ])));
+
+        $result = $this->api->devices()->position(4568857);
+
+        self::assertSame('GET', $this->http->requests[0]['method']);
+        self::assertStringEndsWith('/json/v1/device/4568857/position', $this->http->requests[0]['url']);
+        self::assertSame('59.962913', $result['device']['position']['lat']);
+        self::assertSame('30.350255', $result['device']['position']['lon']);
+    }
+
     public function testSetParam(): void
     {
         $this->http->push(new Response(200, json_encode([

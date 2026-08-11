@@ -130,6 +130,7 @@ $api->authenticate();  // капча решится сама
 | `$api->user()->info()` | `UserInfo` (профиль + устройства) |
 | `$api->devices()->list()` | Список `Device` |
 | `$api->devices()->state($deviceId)` | `DeviceState` (`/json/v3/device/{id}/data`) |
+| `$api->devices()->position($deviceId)` | Последнее местоположение (`/json/v1/device/{id}/position`) |
 | `$api->devices()->setParam($deviceId, $params)` | Команда (`/json/v1/device/{id}/set_param`) |
 | `$api->devices()->arm/disarm/startEngine/stopEngine($deviceId)` | Типовые команды |
 | `$api->devices()->events($deviceId, $from, $to)` | События за период |

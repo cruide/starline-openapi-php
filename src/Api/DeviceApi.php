@@ -38,6 +38,18 @@ final class DeviceApi
     }
 
     /**
+     * Текущее (последнее зафиксированное) местоположение устройства.
+     *
+     * GET /json/v1/device/{device_id}/position
+     *
+     * @deprecated В StarLine API. Рекомендуется использовать state() (/json/v3/device/{id}/data).
+     */
+    public function position(int|string $deviceId): array
+    {
+        return $this->client->get(sprintf('/json/v1/device/%s/position', $deviceId));
+    }
+
+    /**
      * Установка параметров (команды устройству).
      *
      * POST /json/v1/device/{device_id}/set_param
