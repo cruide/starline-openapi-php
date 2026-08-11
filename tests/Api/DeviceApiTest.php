@@ -235,6 +235,43 @@ final class DeviceApiTest extends TestCase
         );
     }
 
+    public function testEventType(): void
+    {
+        $this->http->push(new Response(200, json_encode([
+            'code' => 200,
+            'desc' => [
+                'eventDescriptions' => [
+                    ['code' => 307, 'group_id' => 2, 'desc' => 'Тревога по датчику ручного тормоза'],
+                ],
+            ],
+        ])));
+
+        $result = $this->api->devices()->eventType(307);
+
+        self::assertSame('GET', $this->http->requests[0]['method']);
+        self::assertStringEndsWith('/json/v3/library/events/307', $this->http->requests[0]['url']);
+        self::assertSame('Тревога по датчику ручного тормоза', $result['eventDescriptions'][0]['desc']);
+    }
+
+    public function testEventTypes(): void
+    {
+        $this->http->push(new Response(200, json_encode([
+            'code' => 200,
+            'desc' => [
+                'eventDescriptions' => [
+                    ['code' => 301, 'group_id' => 2, 'desc' => 'Тревога по основному датчику удара'],
+                    ['code' => 307, 'group_id' => 2, 'desc' => 'Тревога по датчику ручного тормоза'],
+                ],
+            ],
+        ])));
+
+        $result = $this->api->devices()->eventTypes();
+
+        self::assertSame('GET', $this->http->requests[0]['method']);
+        self::assertStringEndsWith('/json/v3/library/events', $this->http->requests[0]['url']);
+        self::assertCount(2, $result['eventDescriptions']);
+    }
+
     public function testList(): void
     {
         // getUserId()

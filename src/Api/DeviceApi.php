@@ -162,4 +162,28 @@ final class DeviceApi
             array_merge(['from' => $from, 'to' => $to], $extra)
         );
     }
+
+    /**
+     * Описание одного типа события.
+     *
+     * GET /json/v3/library/events/{id}
+     *
+     * @return array<mixed>
+     */
+    public function eventType(int $id): array
+    {
+        return $this->client->get(sprintf('/json/v3/library/events/%d', $id));
+    }
+
+    /**
+     * Библиотека всех типов событий.
+     *
+     * GET /json/v3/library/events
+     *
+     * @return array<mixed>
+     */
+    public function eventTypes(): array
+    {
+        return $this->client->get('/json/v3/library/events');
+    }
 }
