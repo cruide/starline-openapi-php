@@ -134,6 +134,7 @@ $api->authenticate();  // капча решится сама
 | `$api->devices()->arm/disarm/startEngine/stopEngine($deviceId)` | Типовые команды |
 | `$api->devices()->events($deviceId, $from, $to)` | События за период |
 | `$api->devices()->history($deviceId, $from, $to)` | GPS-история за период |
+| `$api->devices()->ways($deviceId, $begin, $end, $extra)` | Трек (координаты, пробег, время в движении) |
 | `$api->get($path, $query)` / `$api->post($path, $json)` | Универсальные запросы |
 
 ## Хранение токенов
